@@ -2,2029 +2,416 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-<meta name="screen-orientation" content="landscape">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#050309">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-
-<title>NEXUS — AURELIS</title>
-
+<title>NEXUS â€” AURELIS</title>
 <style>
-*{
-  box-sizing:border-box;
-  margin:0;
-  padding:0;
-  -webkit-tap-highlight-color:transparent;
-}
-
-html,
-body{
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:#08040b;
-  font-family:Arial,sans-serif;
-  color:white;
-  touch-action:none;
-}
-
-#game{
-  position:fixed;
-  inset:0;
-}
-
-canvas{
-  display:block;
-}
-
-/* =========================
-   LOADING / START SCREEN
-========================= */
-
-#loading{
-  position:fixed;
-  inset:0;
-  z-index:50;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-direction:column;
-  background:
-    radial-gradient(
-      circle at center,
-      #351326 0%,
-      #100711 45%,
-      #050307 100%
-    );
-  transition:opacity .8s ease;
-}
-
-.logo{
-  font-size:48px;
-  font-weight:900;
-  letter-spacing:12px;
-  text-shadow:
-    0 0 10px #c77cff,
-    0 0 30px #7d2cff;
-}
-
-.subtitle{
-  margin-top:10px;
-  color:#cfa9ff;
-  letter-spacing:4px;
-  font-size:12px;
-}
-
-.loading-bar{
-  width:180px;
-  height:3px;
-  margin-top:35px;
-  background:#321a3d;
-  overflow:hidden;
-}
-
-.loading-fill{
-  width:0;
-  height:100%;
-  background:#d79cff;
-  box-shadow:0 0 15px #c56cff;
-  animation:load 2s forwards;
-}
-
-@keyframes load{
-  to{
-    width:100%;
-  }
-}
-
-#playBtn{
-  margin-top:28px;
-  padding:14px 34px;
-  border:1px solid rgba(220,170,255,.75);
-  border-radius:6px;
-  background:rgba(90,30,130,.45);
-  color:white;
-  font-weight:bold;
-  letter-spacing:2px;
-  font-size:13px;
-  box-shadow:
-    0 0 20px rgba(180,80,255,.25),
-    inset 0 0 15px rgba(180,80,255,.08);
-  cursor:pointer;
-}
-
-#playBtn:active{
-  transform:scale(.94);
-  background:rgba(150,60,200,.55);
-}
-
-#rotateHint{
-  margin-top:14px;
-  font-size:9px;
-  letter-spacing:2px;
-  color:#a98bb5;
-  text-align:center;
-}
-
-/* =========================
-   HUD
-========================= */
-
-#hud{
-  position:fixed;
-  inset:0;
-  pointer-events:none;
-  z-index:5;
-}
-
-.top{
-  position:absolute;
-  top:18px;
-  left:18px;
-  right:18px;
-  display:flex;
-  justify-content:space-between;
-}
-
-.system{
-  font-size:11px;
-  letter-spacing:2px;
-  color:#bda4c8;
-}
-
-.system strong{
-  color:#e3c8ff;
-}
-
-.objective{
-  position:absolute;
-  top:65px;
-  left:18px;
-  padding:10px 14px;
-  border-left:2px solid #d27cff;
-  background:rgba(10,5,15,.65);
-  backdrop-filter:blur(6px);
-}
-
-.objective-title{
-  color:#a96cff;
-  font-size:10px;
-  letter-spacing:2px;
-  margin-bottom:4px;
-}
-
-.objective-text{
-  font-size:14px;
-  font-weight:bold;
-}
-
-#interact{
-  position:absolute;
-  left:50%;
-  bottom:115px;
-  transform:translateX(-50%);
-  display:none;
-  padding:12px 18px;
-  border:1px solid rgba(220,160,255,.6);
-  background:rgba(20,8,28,.75);
-  border-radius:5px;
-  font-size:12px;
-  letter-spacing:1px;
-  white-space:nowrap;
-}
-
-#joystick{
-  position:absolute;
-  left:25px;
-  bottom:28px;
-  width:115px;
-  height:115px;
-  border:1px solid rgba(210,150,255,.28);
-  border-radius:50%;
-  background:rgba(20,10,28,.28);
-  pointer-events:auto;
-}
-
-#stick{
-  position:absolute;
-  left:50%;
-  top:50%;
-  width:48px;
-  height:48px;
-  transform:translate(-50%,-50%);
-  border-radius:50%;
-  background:rgba(207,137,255,.35);
-  border:1px solid rgba(235,190,255,.7);
-  box-shadow:0 0 18px rgba(190,100,255,.35);
-}
-
-.controls{
-  position:absolute;
-  right:22px;
-  bottom:28px;
-  display:flex;
-  gap:12px;
-  pointer-events:auto;
-}
-
-.btn{
-  width:58px;
-  height:58px;
-  border-radius:50%;
-  border:1px solid rgba(220,170,255,.5);
-  background:rgba(22,10,30,.6);
-  color:white;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  font-size:11px;
-  font-weight:bold;
-  backdrop-filter:blur(5px);
-}
-
-.btn:active{
-  transform:scale(.92);
-  background:rgba(140,60,190,.5);
-}
-
-#message{
-  position:absolute;
-  left:50%;
-  bottom:35px;
-  transform:translateX(-50%);
-  width:min(90%,430px);
-  padding:13px 18px;
-  text-align:center;
-  font-size:12px;
-  color:#e8d9ef;
-  background:rgba(8,4,12,.75);
-  border:1px solid rgba(190,120,230,.25);
-  display:none;
-}
-
-.scanlines{
-  position:fixed;
-  inset:0;
-  pointer-events:none;
-  z-index:10;
-  opacity:.08;
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0,
-      transparent 3px,
-      #fff 4px
-    );
-}
-
-/* =========================
-   PORTRAIT SCREEN
-========================= */
-
-#portraitWarning{
-  display:none;
-  position:fixed;
-  inset:0;
-  z-index:100;
-  background:
-    radial-gradient(
-      circle at center,
-      #351326 0%,
-      #100711 50%,
-      #050307 100%
-    );
-  align-items:center;
-  justify-content:center;
-  flex-direction:column;
-  text-align:center;
-  padding:30px;
-}
-
-.phoneIcon{
-  font-size:58px;
-  margin-bottom:25px;
-  animation:rotatePhone 2s infinite ease-in-out;
-}
-
-@keyframes rotatePhone{
-  0%{transform:rotate(0deg)}
-  50%{transform:rotate(90deg)}
-  100%{transform:rotate(90deg)}
-}
-
-.portraitTitle{
-  font-size:20px;
-  font-weight:bold;
-  letter-spacing:3px;
-  color:#e7c7ff;
-}
-
-.portraitText{
-  margin-top:12px;
-  color:#a98bb5;
-  font-size:11px;
-  letter-spacing:2px;
-  line-height:1.7;
-}
-
-/*
-  Show the orientation warning while the game
-  is portrait AND the player has already started.
-*/
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050309;color:#fff;font-family:Arial,sans-serif;touch-action:none}
+canvas{display:block;position:fixed;inset:0}
+#game{position:fixed;inset:0;overflow:hidden}
+#rotate{position:fixed;inset:0;z-index:100;background:#08050d;display:none;align-items:center;justify-content:center;text-align:center;padding:30px}
+#rotate div{font-size:22px;font-weight:bold;line-height:1.5}
+#rotate span{display:block;font-size:50px;margin-bottom:15px}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+#objective{position:absolute;top:18px;left:18px;padding:10px 15px;border:1px solid rgba(255,255,255,.2);border-radius:10px;background:rgba(5,3,9,.58);backdrop-filter:blur(8px);font-size:13px;letter-spacing:1px}
+#objective b{display:block;color:#b99cff;font-size:10px;margin-bottom:4px}
+#status{position:absolute;left:18px;bottom:18px;font-size:11px;color:#d9d0e8;background:rgba(5,3,9,.5);padding:7px 10px;border-radius:8px}
+#message{position:absolute;left:50%;bottom:25%;transform:translateX(-50%);width:min(620px,82vw);padding:15px 18px;border-radius:12px;border:1px solid rgba(180,140,255,.4);background:rgba(8,5,15,.84);backdrop-filter:blur(10px);font-size:14px;line-height:1.5;display:none;text-align:center}
+#controls{position:fixed;inset:0;z-index:20;pointer-events:none}
+#lookArea{position:absolute;right:0;top:0;width:58%;height:100%;pointer-events:auto}
+#joystickZone{position:absolute;left:0;bottom:0;width:48%;height:72%;pointer-events:auto}
+#joystick{position:absolute;width:132px;height:132px;border-radius:50%;display:none;pointer-events:none;border:2px solid rgba(210,180,255,.32);background:rgba(90,55,120,.14);box-shadow:0 0 25px rgba(130,80,220,.12)}
+#stick{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px;border-radius:50%;background:rgba(210,185,255,.42);border:2px solid rgba(255,255,255,.5);box-shadow:0 5px 20px rgba(0,0,0,.35)}
+.btn{position:absolute;pointer-events:auto;border:1px solid rgba(255,255,255,.25);background:rgba(18,12,28,.55);color:#fff;border-radius:50%;font-size:11px;font-weight:bold;backdrop-filter:blur(8px);width:62px;height:62px}
+.btn:active{transform:scale(.94);background:rgba(120,75,170,.55)}
+#useBtn{right:26px;bottom:29%;width:70px;height:70px}
+#jumpBtn{right:105px;bottom:17%;width:58px;height:58px}
+#camBtn{right:25px;bottom:13%;width:58px;height:58px}
+#hint{position:absolute;right:25px;top:18px;font-size:10px;color:rgba(255,255,255,.55);letter-spacing:.7px}
+#start{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 45%,#29143b 0,#09060e 48%,#020205 100%)}
+#startPanel{text-align:center;width:min(560px,88vw);padding:28px}
+#startPanel h1{font-size:clamp(42px,10vw,76px);letter-spacing:10px;margin:0 0 6px}
+#startPanel p{color:#aaa1b8;letter-spacing:2px;margin:0 0 28px}
+#play{border:1px solid #b88aff;background:rgba(130,75,190,.18);color:white;padding:15px 42px;border-radius:12px;font-weight:bold;letter-spacing:3px;font-size:14px}
+#play:active{transform:scale(.97)}
+#loading{margin-top:16px;font-size:11px;color:#756b80}
 @media (orientation:portrait){
-
-  body.gameStarted #portraitWarning{
-    display:flex;
-  }
-
-  body.gameStarted #game,
-  body.gameStarted #hud,
-  body.gameStarted .scanlines{
-    display:none;
-  }
-}
-
-/* Landscape optimization */
-@media (orientation:landscape){
-
-  #joystick{
-    left:30px;
-    bottom:25px;
-  }
-
-  .controls{
-    right:30px;
-    bottom:25px;
-  }
+ #rotate{display:flex}
+ #start{display:none}
 }
 </style>
 </head>
-
 <body>
-
-<!-- =========================
-     GAME
-========================= -->
-
 <div id="game"></div>
 
-<!-- =========================
-     START SCREEN
-========================= -->
+<div id="rotate"><div><span>ðŸ“±â†”ï¸</span>Please rotate your phone to<br><b>LANDSCAPE</b> to play NEXUS.</div></div>
 
-<div id="loading">
-
-  <div class="logo">NEXUS</div>
-
-  <div class="subtitle">
-    AURELIS // CHAPTER 01
+<div id="start">
+  <div id="startPanel">
+    <h1>NEXUS</h1>
+    <p>AURELIS â€¢ CHAPTER 1</p>
+    <button id="play">PLAY NEXUS</button>
+    <div id="loading">Initializing exploration system...</div>
   </div>
-
-  <div class="loading-bar">
-    <div class="loading-fill"></div>
-  </div>
-
-  <button id="playBtn">
-    PLAY NEXUS
-  </button>
-
-  <div id="rotateHint">
-    LANDSCAPE MODE RECOMMENDED
-  </div>
-
 </div>
-
-<!-- =========================
-     PORTRAIT WARNING
-========================= -->
-
-<div id="portraitWarning">
-
-  <div class="phoneIcon">
-    📱
-  </div>
-
-  <div class="portraitTitle">
-    ROTATE DEVICE
-  </div>
-
-  <div class="portraitText">
-    NEXUS IS DESIGNED FOR<br>
-    LANDSCAPE GAMEPLAY
-  </div>
-
-</div>
-
-<!-- =========================
-     HUD
-========================= -->
 
 <div id="hud">
-
-  <div class="top">
-
-    <div class="system">
-      PLANET <strong>AURELIS</strong><br>
-      SECTOR 01 // CRASH SITE
-    </div>
-
-    <div class="system">
-      SUIT <strong>ONLINE</strong><br>
-      LIFE SUPPORT <strong>31%</strong>
-    </div>
-
-  </div>
-
-  <div class="objective">
-
-    <div class="objective-title">
-      CURRENT OBJECTIVE
-    </div>
-
-    <div
-      class="objective-text"
-      id="objective"
-    >
-      TALK TO UNKNOWN
-    </div>
-
-  </div>
-
-  <div id="interact">
-    TAP INTERACT TO ACCESS SHIP PANEL
-  </div>
-
-  <div id="joystick">
-    <div id="stick"></div>
-  </div>
-
-  <div class="controls">
-
-    <div
-      class="btn"
-      id="cameraBtn"
-    >
-      CAM
-    </div>
-
-    <div
-      class="btn"
-      id="interactBtn"
-    >
-      USE
-    </div>
-
-  </div>
-
+  <div id="objective"><b>OBJECTIVE</b><span id="objectiveText">TALK TO UNKNOWN</span></div>
+  <div id="status">AURELIS â€¢ CRASH SITE</div>
   <div id="message"></div>
-
 </div>
 
-<div class="scanlines"></div>
-
-<!-- =========================
-     THREE.JS
-========================= -->
+<div id="controls">
+  <div id="lookArea"></div>
+  <div id="joystickZone"></div>
+  <div id="joystick"><div id="stick"></div></div>
+  <button class="btn" id="useBtn">USE</button>
+  <button class="btn" id="jumpBtn">JUMP</button>
+  <button class="btn" id="camBtn">CAM</button>
+  <div id="hint">SWIPE RIGHT SIDE TO LOOK</div>
+</div>
 
 <script type="module">
-
-import * as THREE from
-'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
-
-
-/* =========================
-   VARIABLES
-========================= */
-
-let scene;
-let camera;
-let renderer;
-
-let player;
-let ship;
-let nova;
-
-let thirdPerson = true;
-let gameStarted = false;
-
-const clock = new THREE.Clock();
-
-const keys = {
-  forward:false,
-  back:false,
-  left:false,
-  right:false
-};
-
-let joystickActive = false;
-let joystickX = 0;
-let joystickY = 0;
-
-const objective =
-  document.getElementById("objective");
-
-const interactHint =
-  document.getElementById("interact");
-
-const message =
-  document.getElementById("message");
-
-const loading =
-  document.getElementById("loading");
-
-const playBtn =
-  document.getElementById("playBtn");
-
-
-/* =========================
-   START GAME
-========================= */
-
-playBtn.addEventListener(
-  "click",
-  async () => {
-
-    gameStarted = true;
-
-    document.body.classList.add(
-      "gameStarted"
-    );
-
-    /*
-      Try to enter fullscreen.
-      Android browsers only allow this
-      after a user interaction.
-    */
-
-    try{
-
-      if(
-        document.documentElement.requestFullscreen
-      ){
-
-        await document.documentElement
-          .requestFullscreen();
-
-      }
-
-    }catch(error){
-
-      console.log(
-        "Fullscreen unavailable:",
-        error
-      );
-
-    }
-
-    /*
-      Try to lock the screen
-      to landscape.
-    */
-
-    try{
-
-      if(
-        screen.orientation &&
-        screen.orientation.lock
-      ){
-
-        await screen.orientation.lock(
-          "landscape"
-        );
-
-      }
-
-    }catch(error){
-
-      console.log(
-        "Landscape lock unavailable:",
-        error
-      );
-
-    }
-
-    /*
-      Start the game.
-    */
-
-    loading.style.opacity = "0";
-
-    setTimeout(() => {
-
-      loading.style.display = "none";
-
-      if(!scene){
-
-        init();
-
-      }
-
-    },800);
-
-  }
-);
-
-
-/* =========================
-   INITIALIZE
-========================= */
-
-function init(){
-
-  scene =
-    new THREE.Scene();
-
-  scene.background =
-    new THREE.Color(
-      0x140817
-    );
-
-  scene.fog =
-    new THREE.FogExp2(
-      0x5c294d,
-      .018
-    );
-
-
-  camera =
-    new THREE.PerspectiveCamera(
-      65,
-      innerWidth / innerHeight,
-      .1,
-      1000
-    );
-
-
-  renderer =
-    new THREE.WebGLRenderer({
-      antialias:true,
-      powerPreference:
-        "high-performance"
-    });
-
-
-  renderer.setSize(
-    innerWidth,
-    innerHeight
-  );
-
-
-  renderer.setPixelRatio(
-    Math.min(
-      devicePixelRatio,
-      1.7
-    )
-  );
-
-
-  renderer.shadowMap.enabled =
-    true;
-
-  renderer.shadowMap.type =
-    THREE.PCFSoftShadowMap;
-
-
-  document
-    .getElementById("game")
-    .appendChild(
-      renderer.domElement
-    );
-
-
-  createLighting();
-  createWorld();
-  createPlayer();
-  createShip();
-  createNova();
-  createStars();
-
-  setupControls();
-
-
-  camera.position.set(
-    0,
-    4,
-    7
-  );
-
-
-  addEventListener(
-    "resize",
-    onResize
-  );
-
-
-  animate();
-
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
+
+let scene,camera,renderer,clock;
+let player,ship,nova;
+let started=false,thirdPerson=false;
+let yaw=0,pitch=0.18;
+let velocityX=0,velocityZ=0;
+let joystickActive=false,joyId=null;
+let joyX=0,joyY=0;
+let lookId=null,lastLookX=0,lastLookY=0;
+let interacted=false;
+const keys={};
+
+const game=document.getElementById("game");
+const joystick=document.getElementById("joystick");
+const stick=document.getElementById("stick");
+const joystickZone=document.getElementById("joystickZone");
+const lookArea=document.getElementById("lookArea");
+const message=document.getElementById("message");
+const objectiveText=document.getElementById("objectiveText");
+const loading=document.getElementById("loading");
+
+function makeMat(color,rough=1,metal=0){
+ return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal});
 }
 
+function createTerrain(){
+ const geo=new THREE.PlaneGeometry(500,500,80,80);
+ const p=geo.attributes.position;
+ for(let i=0;i<p.count;i++){
+   const x=p.getX(i),z=p.getY(i);
+   let h=Math.sin(x*.055)*2.5+Math.cos(z*.047)*2.2+Math.sin((x+z)*.025)*3;
+   h+=Math.max(0,Math.sin(x*.015)*Math.cos(z*.021))*3;
+   p.setZ(i,h);
+ }
+ geo.computeVertexNormals();
+ const mesh=new THREE.Mesh(geo,makeMat(0x673927,1,0));
+ mesh.rotation.x=-Math.PI/2;
+ scene.add(mesh);
 
-/* =========================
-   LIGHTING
-========================= */
-
-function createLighting(){
-
-  scene.add(
-    new THREE.HemisphereLight(
-      0xffc0dc,
-      0x160b20,
-      1.5
-    )
-  );
-
-
-  const moon =
-    new THREE.DirectionalLight(
-      0xc9a4ff,
-      2.2
-    );
-
-  moon.position.set(
-    -40,
-    60,
-    -30
-  );
-
-  moon.castShadow = true;
-
-  moon.shadow.mapSize.width =
-    1024;
-
-  moon.shadow.mapSize.height =
-    1024;
-
-  scene.add(moon);
-
-
-  const red =
-    new THREE.PointLight(
-      0xff4d31,
-      8,
-      30
-    );
-
-  red.position.set(
-    3,
-    3,
-    -8
-  );
-
-  scene.add(red);
-
+ const rockMat=makeMat(0x43241e,1,0);
+ for(let i=0;i<55;i++){
+   const r=new THREE.Mesh(new THREE.DodecahedronGeometry(THREE.MathUtils.randFloat(2,8),1),rockMat);
+   r.position.set((Math.random()-.5)*440,THREE.MathUtils.randFloat(2,7),(Math.random()-.5)*440);
+   r.scale.y=THREE.MathUtils.randFloat(.6,1.8);
+   r.rotation.set(Math.random()*2,Math.random()*3,Math.random()*2);
+   scene.add(r);
+ }
 }
-
-
-/* =========================
-   AURELIS WORLD
-========================= */
-
-function createWorld(){
-
-  const g =
-    new THREE.PlaneGeometry(
-      250,
-      250,
-      70,
-      70
-    );
-
-  const p =
-    g.attributes.position;
-
-
-  for(
-    let i = 0;
-    i < p.count;
-    i++
-  ){
-
-    const x =
-      p.getX(i);
-
-    const y =
-      p.getY(i);
-
-
-    p.setZ(
-      i,
-
-      Math.sin(x * .09) * 1.8 +
-
-      Math.cos(y * .12) * 1.4 +
-
-      Math.sin(
-        x * .025 +
-        y * .03
-      ) * 3
-    );
-
-  }
-
-
-  g.computeVertexNormals();
-
-
-  const terrain =
-    new THREE.Mesh(
-      g,
-
-      new THREE.MeshStandardMaterial({
-        color:0x713b38,
-        roughness:1,
-        metalness:.05
-      })
-    );
-
-
-  terrain.rotation.x =
-    -Math.PI / 2;
-
-  terrain.receiveShadow =
-    true;
-
-  scene.add(terrain);
-
-
-  /*
-    Rocks
-  */
-
-  for(
-    let i = 0;
-    i < 70;
-    i++
-  ){
-
-    const rock =
-      new THREE.Mesh(
-
-        new THREE.DodecahedronGeometry(
-          Math.random() * 1.5 + .5,
-          1
-        ),
-
-        new THREE.MeshStandardMaterial({
-          color:
-            Math.random() > .5
-              ? 0x492b35
-              : 0x63363a,
-
-          roughness:1
-        })
-
-      );
-
-
-    const x =
-      (Math.random() - .5) * 130;
-
-    const z =
-      (Math.random() - .5) * 130;
-
-
-    if(
-      Math.abs(x) < 15 &&
-      Math.abs(z) < 15
-    ){
-
-      continue;
-
-    }
-
-
-    rock.position.set(
-      x,
-      .8,
-      z
-    );
-
-
-    rock.scale.y =
-      Math.random() * 2 + .7;
-
-
-    rock.rotation.set(
-      Math.random(),
-      Math.random(),
-      Math.random()
-    );
-
-
-    rock.castShadow =
-      true;
-
-    scene.add(rock);
-
-  }
-
-
-  /*
-    Giant distant formations
-  */
-
-  for(
-    let i = 0;
-    i < 16;
-    i++
-  ){
-
-    const mountain =
-      new THREE.Mesh(
-
-        new THREE.ConeGeometry(
-          Math.random() * 8 + 5,
-          Math.random() * 18 + 12,
-          6
-        ),
-
-        new THREE.MeshStandardMaterial({
-          color:0x321b32,
-          roughness:1
-        })
-
-      );
-
-
-    const angle =
-      i / 16 *
-      Math.PI *
-      2;
-
-
-    mountain.position.set(
-      Math.cos(angle) * 70,
-      5,
-      Math.sin(angle) * 70
-    );
-
-
-    scene.add(mountain);
-
-  }
-
-}
-
-
-/* =========================
-   PLAYER
-========================= */
 
 function createPlayer(){
+ player=new THREE.Group();
+ const suit=makeMat(0x292832,.8,.25);
+ const white=makeMat(0xd7d7dc,.55,.35);
+ const visor=makeMat(0x170d24,.2,.75);
 
-  player =
-    new THREE.Group();
+ const body=new THREE.Mesh(new THREE.CapsuleGeometry(.45,.9,8,16),suit);
+ body.position.y=1.35; player.add(body);
+ const chest=new THREE.Mesh(new THREE.BoxGeometry(.72,.65,.3),white);
+ chest.position.set(0,1.5,.05); player.add(chest);
+ const head=new THREE.Mesh(new THREE.SphereGeometry(.34,16,12),makeMat(0xb77b60,.8,0));
+ head.position.y=2.25; player.add(head);
+ const visorM=new THREE.Mesh(new THREE.SphereGeometry(.25,16,10),visor);
+ visorM.scale.set(1,.65,.35); visorM.position.set(0,2.27,.29); player.add(visorM);
 
-
-  const body =
-    new THREE.Mesh(
-
-      new THREE.CapsuleGeometry(
-        .42,
-        1.1,
-        6,
-        12
-      ),
-
-      new THREE.MeshStandardMaterial({
-        color:0x26242c,
-        roughness:.55,
-        metalness:.25
-      })
-
-    );
-
-
-  body.position.y =
-    1.25;
-
-  body.castShadow =
-    true;
-
-  player.add(body);
-
-
-  /*
-    Helmet
-  */
-
-  const helmet =
-    new THREE.Mesh(
-
-      new THREE.SphereGeometry(
-        .36,
-        16,
-        12
-      ),
-
-      new THREE.MeshStandardMaterial({
-        color:0x18191d,
-        metalness:.6,
-        roughness:.25
-      })
-
-    );
-
-
-  helmet.position.y =
-    2.15;
-
-  player.add(helmet);
-
-
-  /*
-    Purple visor
-  */
-
-  const visor =
-    new THREE.Mesh(
-
-      new THREE.SphereGeometry(
-        .22,
-        16,
-        8
-      ),
-
-      new THREE.MeshBasicMaterial({
-        color:0x8c4cff
-      })
-
-    );
-
-
-  visor.scale.set(
-    1,
-    .55,
-    .35
-  );
-
-
-  visor.position.set(
-    0,
-    2.16,
-    -.28
-  );
-
-
-  player.add(visor);
-
-
-  player.position.set(
-    0,
-    0,
-    5
-  );
-
-
-  scene.add(player);
-
+ for(const s of [-1,1]){
+   const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.15,.75,6,10),suit);
+   leg.position.set(s*.19,.65,0); player.add(leg);
+   const boot=new THREE.Mesh(new THREE.BoxGeometry(.27,.18,.45),makeMat(0x111116,.7,.5));
+   boot.position.set(s*.19,.18,.07); player.add(boot);
+   const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.12,.65,6,10),suit);
+   arm.rotation.z=s*.13; arm.position.set(s*.56,1.48,0); player.add(arm);
+ }
+ player.position.set(0,0,6);
+ scene.add(player);
 }
-
-
-/* =========================
-   CRASHED SHIP
-========================= */
 
 function createShip(){
+ ship=new THREE.Group();
+ const hull=makeMat(0x77757a,.6,.75);
+ const dark=makeMat(0x1d1d22,.5,.65);
+ const broken=makeMat(0x33252a,.9,.1);
 
-  ship =
-    new THREE.Group();
+ const main=new THREE.Mesh(new THREE.CylinderGeometry(2.8,3.5,7,16),hull);
+ main.rotation.z=Math.PI/2; main.rotation.y=.15; main.position.y=2.6; ship.add(main);
+ const nose=new THREE.Mesh(new THREE.ConeGeometry(2.8,4,16),dark);
+ nose.rotation.z=-Math.PI/2; nose.position.set(4.5,2.6,0); ship.add(nose);
 
-
-  ship.position.set(
-    7,
-    1,
-    -7
-  );
-
-
-  ship.rotation.y =
-    -.35;
-
-
-  /*
-    Hull
-  */
-
-  const hull =
-    new THREE.Mesh(
-
-      new THREE.CylinderGeometry(
-        2.2,
-        3.2,
-        11,
-        8
-      ),
-
-      new THREE.MeshStandardMaterial({
-        color:0x55515b,
-        metalness:.8,
-        roughness:.35
-      })
-
-    );
-
-
-  hull.rotation.z =
-    Math.PI / 2;
-
-  hull.rotation.y =
-    .15;
-
-  hull.castShadow =
-    true;
-
-  ship.add(hull);
-
-
-  /*
-    Cockpit
-  */
-
-  const cockpit =
-    new THREE.Mesh(
-
-      new THREE.SphereGeometry(
-        1.4,
-        20,
-        12
-      ),
-
-      new THREE.MeshStandardMaterial({
-        color:0x261f31,
-        metalness:.5,
-        roughness:.2,
-        emissive:0x30104c,
-        emissiveIntensity:.5
-      })
-
-    );
-
-
-  cockpit.scale.set(
-    1.3,
-    .6,
-    1
-  );
-
-
-  cockpit.position.set(
-    -3.8,
-    .4,
-    0
-  );
-
-
-  ship.add(cockpit);
-
-
-  /*
-    Engine lights
-  */
-
-  for(
-    let i = -1;
-    i <= 1;
-    i++
-  ){
-
-    const engine =
-      new THREE.Mesh(
-
-        new THREE.CylinderGeometry(
-          .35,
-          .5,
-          1.2,
-          12
-        ),
-
-        new THREE.MeshBasicMaterial({
-          color:0xff6338
-        })
-
-      );
-
-
-    engine.rotation.z =
-      Math.PI / 2;
-
-
-    engine.position.set(
-      5.3,
-      i * .8,
-      0
-    );
-
-
-    ship.add(engine);
-
-  }
-
-
-  /*
-    Wing
-  */
-
-  const wing =
-    new THREE.Mesh(
-
-      new THREE.BoxGeometry(
-        5,
-        .25,
-        2
-      ),
-
-      new THREE.MeshStandardMaterial({
-        color:0x39363e,
-        metalness:.7,
-        roughness:.4
-      })
-
-    );
-
-
-  wing.position.set(
-    1,
-    .2,
-    2.5
-  );
-
-
-  wing.rotation.y =
-    -.4;
-
-  wing.rotation.z =
-    -.2;
-
-
-  ship.add(wing);
-
-
-  scene.add(ship);
-
+ for(let i=0;i<3;i++){
+   const wing=new THREE.Mesh(new THREE.BoxGeometry(3.2,.35,1.7),broken);
+   wing.position.set(-.7,.9,(i-1)*2.1);
+   wing.rotation.z=(i-1)*.1; ship.add(wing);
+ }
+ const glow=new THREE.Mesh(new THREE.SphereGeometry(.35,12,8),new THREE.MeshBasicMaterial({color:0x9c65ff}));
+ glow.position.set(1.8,2.7,.9); ship.add(glow);
+ ship.position.set(0,0,-5);
+ ship.rotation.y=-.25;
+ scene.add(ship);
 }
-
-
-/* =========================
-   NOVA ROBOT
-========================= */
 
 function createNova(){
-
-  nova =
-    new THREE.Group();
-
-
-  nova.position.set(
-    3.7,
-    .9,
-    1.5
-  );
-
-
-  /*
-    Spherical body
-  */
-
-  const body =
-    new THREE.Mesh(
-
-      new THREE.SphereGeometry(
-        .7,
-        24,
-        16
-      ),
-
-      new THREE.MeshStandardMaterial({
-        color:0x777983,
-        metalness:.8,
-        roughness:.25
-      })
-
-    );
-
-
-  body.castShadow =
-    true;
-
-
-  nova.add(body);
-
-
-  /*
-    Main sensor eye
-  */
-
-  const eye =
-    new THREE.Mesh(
-
-      new THREE.SphereGeometry(
-        .25,
-        16,
-        12
-      ),
-
-      new THREE.MeshBasicMaterial({
-        color:0x65eaff
-      })
-
-    );
-
-
-  eye.position.set(
-    0,
-    .12,
-    -.62
-  );
-
-
-  nova.add(eye);
-
-
-  /*
-    Antenna
-  */
-
-  const antenna =
-    new THREE.Mesh(
-
-      new THREE.CylinderGeometry(
-        .04,
-        .04,
-        .8,
-        8
-      ),
-
-      new THREE.MeshStandardMaterial({
-        color:0x55545c,
-        metalness:.8
-      })
-
-    );
-
-
-  antenna.position.y =
-    .72;
-
-
-  nova.add(antenna);
-
-
-  /*
-    NOVA light
-  */
-
-  const light =
-    new THREE.PointLight(
-      0x5cecff,
-      2,
-      5
-    );
-
-
-  light.position.set(
-    0,
-    .1,
-    -.7
-  );
-
-
-  nova.add(light);
-
-
-  scene.add(nova);
-
+ nova=new THREE.Group();
+ const body=new THREE.Mesh(new THREE.SphereGeometry(.65,20,14),makeMat(0x52545d,.45,.7));
+ nova.add(body);
+ const eye=new THREE.Mesh(new THREE.SphereGeometry(.2,16,10),new THREE.MeshBasicMaterial({color:0x9d72ff}));
+ eye.position.set(0,.15,.58); nova.add(eye);
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(.46,.035,8,24),makeMat(0xa9a4b5,.4,.7));
+ ring.rotation.x=Math.PI/2; nova.add(ring);
+ const antenna=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.45,8),makeMat(0xb5b5bc,.4,.7));
+ antenna.position.y=.7; nova.add(antenna);
+ nova.position.set(2.4,.72,-3.4);
+ scene.add(nova);
 }
-
-
-/* =========================
-   STARS
-========================= */
 
 function createStars(){
-
-  const g =
-    new THREE.BufferGeometry();
-
-  const count =
-    900;
-
-  const d =
-    new Float32Array(
-      count * 3
-    );
-
-
-  for(
-    let i = 0;
-    i < count;
-    i++
-  ){
-
-    d[i * 3] =
-      (Math.random() - .5) *
-      500;
-
-    d[i * 3 + 1] =
-      Math.random() *
-      150 + 20;
-
-    d[i * 3 + 2] =
-      (Math.random() - .5) *
-      500;
-
-  }
-
-
-  g.setAttribute(
-    "position",
-    new THREE.BufferAttribute(
-      d,
-      3
-    )
-  );
-
-
-  scene.add(
-
-    new THREE.Points(
-
-      g,
-
-      new THREE.PointsMaterial({
-        color:0xf0dfff,
-        size:.25,
-        transparent:true,
-        opacity:.7
-      })
-
-    )
-
-  );
-
+ const geo=new THREE.BufferGeometry();
+ const arr=[];
+ for(let i=0;i<1500;i++){
+   arr.push((Math.random()-.5)*600,Math.random()*220+15,(Math.random()-.5)*600);
+ }
+ geo.setAttribute("position",new THREE.Float32BufferAttribute(arr,3));
+ scene.add(new THREE.Points(geo,new THREE.PointsMaterial({color:0xffffff,size:.65,sizeAttenuation:true})));
 }
 
-
-/* =========================
-   CONTROLS
-========================= */
-
-function setupControls(){
-
-  /*
-    Keyboard
-  */
-
-  addEventListener(
-    "keydown",
-    e => {
-
-      if(e.key === "w")
-        keys.forward = true;
-
-      if(e.key === "s")
-        keys.back = true;
-
-      if(e.key === "a")
-        keys.left = true;
-
-      if(e.key === "d")
-        keys.right = true;
-
-    }
-  );
-
-
-  addEventListener(
-    "keyup",
-    e => {
-
-      if(e.key === "w")
-        keys.forward = false;
-
-      if(e.key === "s")
-        keys.back = false;
-
-      if(e.key === "a")
-        keys.left = false;
-
-      if(e.key === "d")
-        keys.right = false;
-
-    }
-  );
-
-
-  /*
-    Camera button
-  */
-
-  document
-    .getElementById("cameraBtn")
-    .onclick = () => {
-
-      thirdPerson =
-        !thirdPerson;
-
-      showMessage(
-        thirdPerson
-          ? "THIRD-PERSON CAMERA"
-          : "FIRST-PERSON CAMERA"
-      );
-
-    };
-
-
-  /*
-    Interaction button
-  */
-
-  document
-    .getElementById("interactBtn")
-    .onclick =
-      interact;
-
-
-  /*
-    Mobile joystick
-  */
-
-  const joystick =
-    document.getElementById(
-      "joystick"
-    );
-
-  const stick =
-    document.getElementById(
-      "stick"
-    );
-
-
-  joystick.addEventListener(
-    "touchstart",
-    e => {
-
-      joystickActive =
-        true;
-
-      e.preventDefault();
-
-    },
-    {
-      passive:false
-    }
-  );
-
-
-  joystick.addEventListener(
-    "touchmove",
-    e => {
-
-      if(!joystickActive)
-        return;
-
-
-      const r =
-        joystick.getBoundingClientRect();
-
-
-      const t =
-        e.touches[0];
-
-
-      let x =
-        t.clientX -
-        (
-          r.left +
-          r.width / 2
-        );
-
-
-      let y =
-        t.clientY -
-        (
-          r.top +
-          r.height / 2
-        );
-
-
-      const max =
-        r.width / 2 - 24;
-
-
-      const dist =
-        Math.hypot(
-          x,
-          y
-        );
-
-
-      if(dist > max){
-
-        x =
-          x / dist * max;
-
-        y =
-          y / dist * max;
-
-      }
-
-
-      joystickX =
-        x / max;
-
-      joystickY =
-        y / max;
-
-
-      stick.style.transform =
-        `translate(
-          calc(-50% + ${x}px),
-          calc(-50% + ${y}px)
-        )`;
-
-
-      e.preventDefault();
-
-    },
-    {
-      passive:false
-    }
-  );
-
-
-  joystick.addEventListener(
-    "touchend",
-    () => {
-
-      joystickActive =
-        false;
-
-      joystickX = 0;
-      joystickY = 0;
-
-      stick.style.transform =
-        "translate(-50%,-50%)";
-
-    }
-  );
-
+function setup(){
+ scene=new THREE.Scene();
+ scene.background=new THREE.Color(0x100811);
+ scene.fog=new THREE.FogExp2(0x210f18,.006);
+
+ camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.05,700);
+ renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
+ renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
+ renderer.setSize(innerWidth,innerHeight);
+ renderer.shadowMap.enabled=true;
+ game.appendChild(renderer.domElement);
+
+ clock=new THREE.Clock();
+
+ scene.add(new THREE.HemisphereLight(0xffd7bd,0x160b18,1.5));
+ const sun=new THREE.DirectionalLight(0xffc39a,2.1);
+ sun.position.set(-60,100,40); scene.add(sun);
+
+ createTerrain();
+ createStars();
+ createShip();
+ createPlayer();
+ createNova();
+
+ window.addEventListener("resize",resize);
+ window.addEventListener("keydown",e=>keys[e.code]=true);
+ window.addEventListener("keyup",e=>keys[e.code]=false);
+
+ setupJoystick();
+ setupLook();
+ setupButtons();
+ animate();
 }
 
+function resize(){
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+}
 
-/* =========================
-   INTERACTION
-========================= */
+function showMessage(text,time=3500){
+ message.textContent=text;
+ message.style.display="block";
+ clearTimeout(showMessage.t);
+ showMessage.t=setTimeout(()=>message.style.display="none",time);
+}
+
+function setupJoystick(){
+ function start(e){
+   if(!started || e.pointerType==="mouse")return;
+   e.preventDefault();
+   joystickActive=true; joyId=e.pointerId;
+   const r=joystickZone.getBoundingClientRect();
+   const x=e.clientX-r.left,y=e.clientY-r.top;
+   joystick.style.left=(e.clientX-66)+"px";
+   joystick.style.top=(e.clientY-66)+"px";
+   joystick.style.display="block";
+   updateJoy(e.clientX,e.clientY);
+ }
+ function move(e){
+   if(!joystickActive || e.pointerId!==joyId)return;
+   e.preventDefault(); updateJoy(e.clientX,e.clientY);
+ }
+ function end(e){
+   if(e.pointerId!==joyId)return;
+   joystickActive=false; joyId=null; joyX=0; joyY=0;
+   stick.style.transform="translate(0,0)";
+   joystick.style.display="none";
+ }
+ joystickZone.addEventListener("pointerdown",start);
+ joystickZone.addEventListener("pointermove",move);
+ joystickZone.addEventListener("pointerup",end);
+ joystickZone.addEventListener("pointercancel",end);
+
+ function updateJoy(x,y){
+   const cx=parseFloat(joystick.style.left)+66;
+   const cy=parseFloat(joystick.style.top)+66;
+   let dx=x-cx,dy=y-cy;
+   const max=48;
+   const len=Math.hypot(dx,dy);
+   if(len>max){dx=dx/len*max;dy=dy/len*max}
+   joyX=dx/max;
+   // CORRECTED: screen Y down means game forward is negative Z.
+   joyY=-dy/max;
+   stick.style.transform=`translate(${dx}px,${dy}px)`;
+ }
+}
+
+function setupLook(){
+ lookArea.addEventListener("pointerdown",e=>{
+   if(!started || e.pointerType==="mouse")return;
+   lookId=e.pointerId;
+   lastLookX=e.clientX; lastLookY=e.clientY;
+   lookArea.setPointerCapture(e.pointerId);
+ });
+ lookArea.addEventListener("pointermove",e=>{
+   if(e.pointerId!==lookId)return;
+   const dx=e.clientX-lastLookX,dy=e.clientY-lastLookY;
+   lastLookX=e.clientX; lastLookY=e.clientY;
+   yaw-=dx*.006;
+   pitch-=dy*.004;
+   pitch=THREE.MathUtils.clamp(pitch,-.75,.8);
+ });
+ lookArea.addEventListener("pointerup",e=>{if(e.pointerId===lookId)lookId=null});
+ lookArea.addEventListener("pointercancel",e=>{if(e.pointerId===lookId)lookId=null});
+}
+
+function setupButtons(){
+ document.getElementById("play").addEventListener("click",async()=>{
+   started=true;
+   document.getElementById("start").style.display="none";
+   try{if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen()}catch(e){}
+   try{if(screen.orientation?.lock)await screen.orientation.lock("landscape")}catch(e){}
+   showMessage("AURELIS â€” SYSTEM ONLINE",2200);
+ });
+
+ document.getElementById("camBtn").addEventListener("pointerdown",e=>{
+   e.preventDefault(); thirdPerson=!thirdPerson;
+   showMessage(thirdPerson?"THIRD-PERSON CAMERA":"FIRST-PERSON CAMERA",1200);
+ });
+
+ document.getElementById("useBtn").addEventListener("pointerdown",e=>{
+   e.preventDefault(); interact();
+ });
+
+ document.getElementById("jumpBtn").addEventListener("pointerdown",e=>{
+   e.preventDefault();
+   if(player.position.y<.05) velocityY=.16;
+ });
+}
+
+let velocityY=0;
 
 function interact(){
-
-  if(
-    player.position.distanceTo(
-      ship.position
-    ) < 14
-  ){
-
-    objective.innerText =
-      "LISTEN TO HEMTON";
-
-
-    showMessage(
-      "HEMTON: Critical systems failure detected... and you're finally awake."
-    );
-
-
-    interactHint.style.display =
-      "none";
-
-  }else{
-
-    showMessage(
-      "Move closer to the crashed ship."
-    );
-
-  }
-
+ if(!started)return;
+ const d=player.position.distanceTo(ship.position);
+ if(d<9 && !interacted){
+   interacted=true;
+   objectiveText.textContent="SYSTEM MESSAGE";
+   showMessage("HEMTON: Critical systems failure detected. Life support 31%. Navigation offline. Communication unavailable... and you're finally awake.",7000);
+ }else if(player.position.distanceTo(nova.position)<4){
+   showMessage("NOVA: My locomotion system is damaged... I can't roll like this.",4000);
+ }else{
+   showMessage("Nothing useful here.",1400);
+ }
 }
 
+function updatePlayer(dt){
+ let ix=joyX, iz=joyY;
+ if(keys.KeyA)ix-=1;
+ if(keys.KeyD)ix+=1;
+ if(keys.KeyW)iz+=1;
+ if(keys.KeyS)iz-=1;
 
-/* =========================
-   MESSAGE
-========================= */
+ const len=Math.hypot(ix,iz);
+ if(len>1){ix/=len;iz/=len}
 
-function showMessage(t){
+ // Movement is relative to camera/player yaw.
+ const sin=Math.sin(yaw),cos=Math.cos(yaw);
+ const worldX=ix*cos + iz*sin;
+ const worldZ=-ix*sin + iz*cos;
 
-  message.innerText =
-    t;
+ const targetX=worldX*4.5,targetZ=worldZ*4.5;
+ const smooth=1-Math.pow(.001,dt);
+ velocityX+=(targetX-velocityX)*smooth;
+ velocityZ+=(targetZ-velocityZ)*smooth;
 
-  message.style.display =
-    "block";
+ player.position.x+=velocityX*dt;
+ player.position.z+=velocityZ*dt;
 
+ velocityY-=.42;
+ player.position.y+=velocityY;
+ if(player.position.y<0){player.position.y=0;velocityY=0}
 
-  clearTimeout(
-    showMessage.timer
-  );
-
-
-  showMessage.timer =
-    setTimeout(
-      () => {
-
-        message.style.display =
-          "none";
-
-      },
-      5000
-    );
-
+ if(Math.hypot(velocityX,velocityZ)>.15){
+   player.rotation.y=Math.atan2(velocityX,velocityZ);
+ }
 }
-
-
-/* =========================
-   PLAYER MOVEMENT
-========================= */
-
-function updatePlayer(delta){
-
-  let x = 0;
-  let z = 0;
-
-
-  if(keys.forward)
-    z -= 1;
-
-  if(keys.back)
-    z += 1;
-
-  if(keys.left)
-    x -= 1;
-
-  if(keys.right)
-    x += 1;
-
-
-  x += joystickX;
-  z += joystickY;
-
-
-  const len =
-    Math.hypot(
-      x,
-      z
-    );
-
-
-  if(len > 1){
-
-    x /= len;
-    z /= len;
-
-  }
-
-
-  const speed =
-    5 * delta;
-
-
-  player.position.x +=
-    x * speed;
-
-  player.position.z +=
-    z * speed;
-
-
-  if(len > .1){
-
-    player.rotation.y =
-      Math.atan2(
-        x,
-        z
-      );
-
-  }
-
-}
-
-
-/* =========================
-   CAMERA
-========================= */
 
 function updateCamera(){
+ const target=new THREE.Vector3(player.position.x,player.position.y+1.55,player.position.z);
 
-  if(thirdPerson){
-
-    const o =
-      new THREE.Vector3(
-        0,
-        4.2,
-        7
-      );
-
-
-    o.applyAxisAngle(
-      new THREE.Vector3(
-        0,
-        1,
-        0
-      ),
-      player.rotation.y
-    );
-
-
-    camera.position.lerp(
-      player.position
-        .clone()
-        .add(o),
-      .08
-    );
-
-
-    camera.lookAt(
-      player.position.x,
-      player.position.y + 1.2,
-      player.position.z
-    );
-
-  }else{
-
-    const h =
-      player.position.clone();
-
-
-    h.y += 2.1;
-
-
-    camera.position.lerp(
-      h,
-      .15
-    );
-
-
-    const d =
-      new THREE.Vector3(
-        0,
-        0,
-        -1
-      )
-      .applyQuaternion(
-        player.quaternion
-      );
-
-
-    camera.lookAt(
-      h.clone().add(
-        d.multiplyScalar(10)
-      )
-    );
-
-  }
-
+ if(thirdPerson){
+   const dist=5.5;
+   const h=Math.cos(pitch)*dist;
+   camera.position.set(
+     target.x-Math.sin(yaw)*h,
+     target.y+Math.sin(pitch)*dist+1,
+     target.z-Math.cos(yaw)*h
+   );
+   camera.lookAt(target);
+ }else{
+   camera.position.copy(target);
+   camera.rotation.order="YXZ";
+   camera.rotation.y=yaw;
+   camera.rotation.x=pitch;
+ }
 }
-
-
-/* =========================
-   NOVA ANIMATION
-========================= */
-
-function updateNova(time){
-
-  nova.position.y =
-    .9 +
-    Math.sin(
-      time * 2
-    ) * .04;
-
-
-  nova.rotation.y +=
-    .003;
-
-}
-
-
-/* =========================
-   INTERACTION CHECK
-========================= */
-
-function updateInteraction(){
-
-  if(
-    player.position.distanceTo(
-      ship.position
-    ) < 14 &&
-    objective.innerText ===
-      "TALK TO UNKNOWN"
-  ){
-
-    interactHint.style.display =
-      "block";
-
-  }else{
-
-    interactHint.style.display =
-      "none";
-
-  }
-
-}
-
-
-/* =========================
-   GAME LOOP
-========================= */
 
 function animate(){
-
-  requestAnimationFrame(
-    animate
-  );
-
-
-  const delta =
-    Math.min(
-      clock.getDelta(),
-      .05
-    );
-
-
-  const time =
-    performance.now() * .001;
-
-
-  updatePlayer(
-    delta
-  );
-
-
-  updateCamera();
-
-
-  updateNova(
-    time
-  );
-
-
-  updateInteraction();
-
-
-  renderer.render(
-    scene,
-    camera
-  );
-
+ requestAnimationFrame(animate);
+ const dt=Math.min(clock.getDelta(),.05);
+ if(started){
+   updatePlayer(dt);
+   updateCamera();
+   nova.rotation.y+=dt*1.5;
+   nova.position.y=.72+Math.sin(performance.now()*.003)*.06;
+ }
+ renderer.render(scene,camera);
 }
 
-
-/* =========================
-   RESIZE
-========================= */
-
-function onResize(){
-
-  if(!camera || !renderer)
-    return;
-
-
-  camera.aspect =
-    innerWidth /
-    innerHeight;
-
-
-  camera.updateProjectionMatrix();
-
-
-  renderer.setSize(
-    innerWidth,
-    innerHeight
-  );
-
-}
-
-
-/* =========================
-   ORIENTATION CHANGE
-========================= */
-
-addEventListener(
-  "orientationchange",
-  () => {
-
-    setTimeout(
-      () => {
-
-        if(camera){
-
-          onResize();
-
-        }
-
-      },
-      300
-    );
-
-  }
-);
-
+loading.textContent="Loading AURELIS...";
+setup();
 </script>
-
 </body>
 </html>
