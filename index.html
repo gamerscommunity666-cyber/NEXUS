@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#050309">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>NEXUS â€” AURELIS</title>
+<title>NEXUS — AURELIS</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050309;color:#fff;font-family:Arial,sans-serif;touch-action:none}
@@ -47,12 +47,12 @@ canvas{display:block;position:fixed;inset:0}
 <body>
 <div id="game"></div>
 
-<div id="rotate"><div><span>ðŸ“±â†”ï¸</span>Please rotate your phone to<br><b>LANDSCAPE</b> to play NEXUS.</div></div>
+<div id="rotate"><div><span>ROTATE</span>Please rotate your phone to<br><b>LANDSCAPE</b> to play NEXUS.</div></div>
 
 <div id="start">
   <div id="startPanel">
     <h1>NEXUS</h1>
-    <p>AURELIS â€¢ CHAPTER 1</p>
+    <p>AURELIS • CHAPTER 1</p>
     <button id="play">PLAY NEXUS</button>
     <div id="loading">Initializing exploration system...</div>
   </div>
@@ -60,7 +60,7 @@ canvas{display:block;position:fixed;inset:0}
 
 <div id="hud">
   <div id="objective"><b>OBJECTIVE</b><span id="objectiveText">TALK TO UNKNOWN</span></div>
-  <div id="status">AURELIS â€¢ CRASH SITE</div>
+  <div id="status">AURELIS • CRASH SITE</div>
   <div id="message"></div>
 </div>
 
@@ -78,7 +78,7 @@ canvas{display:block;position:fixed;inset:0}
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
 
 let scene,camera,renderer,clock;
-let player,ship,nova;
+let player,ship,nova,terrain;
 let started=false,thirdPerson=false;
 let yaw=0,pitch=0.18;
 let velocityX=0,velocityZ=0;
@@ -111,9 +111,10 @@ function createTerrain(){
    p.setZ(i,h);
  }
  geo.computeVertexNormals();
- const mesh=new THREE.Mesh(geo,makeMat(0x673927,1,0));
- mesh.rotation.x=-Math.PI/2;
- scene.add(mesh);
+ terrain=new THREE.Mesh(geo,makeMat(0x673927,1,0));
+ terrain.rotation.x=-Math.PI/2;
+ terrain.name='AURELIS_TERRAIN';
+ scene.add(terrain);
 
  const rockMat=makeMat(0x43241e,1,0);
  for(let i=0;i<55;i++){
@@ -312,7 +313,7 @@ function setupButtons(){
    document.getElementById("start").style.display="none";
    try{if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen()}catch(e){}
    try{if(screen.orientation?.lock)await screen.orientation.lock("landscape")}catch(e){}
-   showMessage("AURELIS â€” SYSTEM ONLINE",2200);
+   showMessage("AURELIS — SYSTEM ONLINE",2200);
  });
 
  document.getElementById("camBtn").addEventListener("pointerdown",e=>{
@@ -356,7 +357,7 @@ function updatePlayer(dt){
  const len=Math.hypot(ix,iz);
  if(len>1){ix/=len;iz/=len}
 
- // Movement is relative to camera/player yaw.
+ // Movement is relative to the camera yaw.
  const sin=Math.sin(yaw),cos=Math.cos(yaw);
  const worldX=ix*cos + iz*sin;
  const worldZ=-ix*sin + iz*cos;
@@ -369,9 +370,31 @@ function updatePlayer(dt){
  player.position.x+=velocityX*dt;
  player.position.z+=velocityZ*dt;
 
+ // Gravity / jump.
  velocityY-=.42;
  player.position.y+=velocityY;
- if(player.position.y<0){player.position.y=0;velocityY=0}
+
+ // Keep the character standing ON the actual AURELIS terrain.
+ // A downward ray finds the deformed ground instead of assuming y = 0.
+ const rayOriginY=Math.max(player.position.y+30,30);
+ const ray=new THREE.Raycaster(
+   new THREE.Vector3(player.position.x,rayOriginY,player.position.z),
+   new THREE.Vector3(0,-1,0),
+   0,80
+ );
+ const hit=ray.intersectObject(terrain,false)[0];
+
+ if(hit){
+   const groundY=hit.point.y;
+   const feetClearance=0.03;
+   if(player.position.y<=groundY+feetClearance && velocityY<=0){
+     player.position.y=groundY+feetClearance;
+     velocityY=0;
+   }
+ }else if(player.position.y<0){
+   player.position.y=0;
+   velocityY=0;
+ }
 
  if(Math.hypot(velocityX,velocityZ)>.15){
    player.rotation.y=Math.atan2(velocityX,velocityZ);
