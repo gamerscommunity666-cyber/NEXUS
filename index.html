@@ -2,130 +2,2029 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
+<meta name="screen-orientation" content="landscape">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+
 <title>NEXUS — AURELIS</title>
+
 <style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{width:100%;height:100%;overflow:hidden;background:#08040b;font-family:Arial,sans-serif;color:white;touch-action:none}
-#game{position:fixed;inset:0}canvas{display:block}
-#loading{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(circle at center,#351326 0%,#100711 45%,#050307 100%);transition:opacity 1s}
-.logo{font-size:48px;font-weight:900;letter-spacing:12px;text-shadow:0 0 10px #c77cff,0 0 30px #7d2cff}
-.subtitle{margin-top:10px;color:#cfa9ff;letter-spacing:4px;font-size:12px}
-.loading-bar{width:180px;height:3px;margin-top:35px;background:#321a3d;overflow:hidden}
-.loading-fill{width:0;height:100%;background:#d79cff;box-shadow:0 0 15px #c56cff;animation:load 2.2s forwards}
-@keyframes load{to{width:100%}}
-#hud{position:fixed;inset:0;pointer-events:none;z-index:5}
-.top{position:absolute;top:18px;left:18px;right:18px;display:flex;justify-content:space-between}
-.system{font-size:11px;letter-spacing:2px;color:#bda4c8}.system strong{color:#e3c8ff}
-.objective{position:absolute;top:65px;left:18px;padding:10px 14px;border-left:2px solid #d27cff;background:rgba(10,5,15,.65);backdrop-filter:blur(6px)}
-.objective-title{color:#a96cff;font-size:10px;letter-spacing:2px;margin-bottom:4px}.objective-text{font-size:14px;font-weight:bold}
-#interact{position:absolute;left:50%;bottom:115px;transform:translateX(-50%);display:none;padding:12px 18px;border:1px solid rgba(220,160,255,.6);background:rgba(20,8,28,.75);border-radius:5px;font-size:12px;letter-spacing:1px}
-#joystick{position:absolute;left:25px;bottom:28px;width:115px;height:115px;border:1px solid rgba(210,150,255,.28);border-radius:50%;background:rgba(20,10,28,.28);pointer-events:auto}
-#stick{position:absolute;left:50%;top:50%;width:48px;height:48px;transform:translate(-50%,-50%);border-radius:50%;background:rgba(207,137,255,.35);border:1px solid rgba(235,190,255,.7);box-shadow:0 0 18px rgba(190,100,255,.35)}
-.controls{position:absolute;right:22px;bottom:28px;display:flex;gap:12px;pointer-events:auto}
-.btn{width:58px;height:58px;border-radius:50%;border:1px solid rgba(220,170,255,.5);background:rgba(22,10,30,.6);color:white;display:flex;justify-content:center;align-items:center;font-size:11px;font-weight:bold;backdrop-filter:blur(5px)}
-.btn:active{transform:scale(.92);background:rgba(140,60,190,.5)}
-#message{position:absolute;left:50%;bottom:35px;transform:translateX(-50%);width:min(90%,430px);padding:13px 18px;text-align:center;font-size:12px;color:#e8d9ef;background:rgba(8,4,12,.75);border:1px solid rgba(190,120,230,.25);display:none}
-.scanlines{position:fixed;inset:0;pointer-events:none;z-index:10;opacity:.08;background:repeating-linear-gradient(to bottom,transparent 0,transparent 3px,#fff 4px)}
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html,
+body{
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#08040b;
+  font-family:Arial,sans-serif;
+  color:white;
+  touch-action:none;
+}
+
+#game{
+  position:fixed;
+  inset:0;
+}
+
+canvas{
+  display:block;
+}
+
+/* =========================
+   LOADING / START SCREEN
+========================= */
+
+#loading{
+  position:fixed;
+  inset:0;
+  z-index:50;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  background:
+    radial-gradient(
+      circle at center,
+      #351326 0%,
+      #100711 45%,
+      #050307 100%
+    );
+  transition:opacity .8s ease;
+}
+
+.logo{
+  font-size:48px;
+  font-weight:900;
+  letter-spacing:12px;
+  text-shadow:
+    0 0 10px #c77cff,
+    0 0 30px #7d2cff;
+}
+
+.subtitle{
+  margin-top:10px;
+  color:#cfa9ff;
+  letter-spacing:4px;
+  font-size:12px;
+}
+
+.loading-bar{
+  width:180px;
+  height:3px;
+  margin-top:35px;
+  background:#321a3d;
+  overflow:hidden;
+}
+
+.loading-fill{
+  width:0;
+  height:100%;
+  background:#d79cff;
+  box-shadow:0 0 15px #c56cff;
+  animation:load 2s forwards;
+}
+
+@keyframes load{
+  to{
+    width:100%;
+  }
+}
+
+#playBtn{
+  margin-top:28px;
+  padding:14px 34px;
+  border:1px solid rgba(220,170,255,.75);
+  border-radius:6px;
+  background:rgba(90,30,130,.45);
+  color:white;
+  font-weight:bold;
+  letter-spacing:2px;
+  font-size:13px;
+  box-shadow:
+    0 0 20px rgba(180,80,255,.25),
+    inset 0 0 15px rgba(180,80,255,.08);
+  cursor:pointer;
+}
+
+#playBtn:active{
+  transform:scale(.94);
+  background:rgba(150,60,200,.55);
+}
+
+#rotateHint{
+  margin-top:14px;
+  font-size:9px;
+  letter-spacing:2px;
+  color:#a98bb5;
+  text-align:center;
+}
+
+/* =========================
+   HUD
+========================= */
+
+#hud{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:5;
+}
+
+.top{
+  position:absolute;
+  top:18px;
+  left:18px;
+  right:18px;
+  display:flex;
+  justify-content:space-between;
+}
+
+.system{
+  font-size:11px;
+  letter-spacing:2px;
+  color:#bda4c8;
+}
+
+.system strong{
+  color:#e3c8ff;
+}
+
+.objective{
+  position:absolute;
+  top:65px;
+  left:18px;
+  padding:10px 14px;
+  border-left:2px solid #d27cff;
+  background:rgba(10,5,15,.65);
+  backdrop-filter:blur(6px);
+}
+
+.objective-title{
+  color:#a96cff;
+  font-size:10px;
+  letter-spacing:2px;
+  margin-bottom:4px;
+}
+
+.objective-text{
+  font-size:14px;
+  font-weight:bold;
+}
+
+#interact{
+  position:absolute;
+  left:50%;
+  bottom:115px;
+  transform:translateX(-50%);
+  display:none;
+  padding:12px 18px;
+  border:1px solid rgba(220,160,255,.6);
+  background:rgba(20,8,28,.75);
+  border-radius:5px;
+  font-size:12px;
+  letter-spacing:1px;
+  white-space:nowrap;
+}
+
+#joystick{
+  position:absolute;
+  left:25px;
+  bottom:28px;
+  width:115px;
+  height:115px;
+  border:1px solid rgba(210,150,255,.28);
+  border-radius:50%;
+  background:rgba(20,10,28,.28);
+  pointer-events:auto;
+}
+
+#stick{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:48px;
+  height:48px;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:rgba(207,137,255,.35);
+  border:1px solid rgba(235,190,255,.7);
+  box-shadow:0 0 18px rgba(190,100,255,.35);
+}
+
+.controls{
+  position:absolute;
+  right:22px;
+  bottom:28px;
+  display:flex;
+  gap:12px;
+  pointer-events:auto;
+}
+
+.btn{
+  width:58px;
+  height:58px;
+  border-radius:50%;
+  border:1px solid rgba(220,170,255,.5);
+  background:rgba(22,10,30,.6);
+  color:white;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:11px;
+  font-weight:bold;
+  backdrop-filter:blur(5px);
+}
+
+.btn:active{
+  transform:scale(.92);
+  background:rgba(140,60,190,.5);
+}
+
+#message{
+  position:absolute;
+  left:50%;
+  bottom:35px;
+  transform:translateX(-50%);
+  width:min(90%,430px);
+  padding:13px 18px;
+  text-align:center;
+  font-size:12px;
+  color:#e8d9ef;
+  background:rgba(8,4,12,.75);
+  border:1px solid rgba(190,120,230,.25);
+  display:none;
+}
+
+.scanlines{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:10;
+  opacity:.08;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 3px,
+      #fff 4px
+    );
+}
+
+/* =========================
+   PORTRAIT SCREEN
+========================= */
+
+#portraitWarning{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:100;
+  background:
+    radial-gradient(
+      circle at center,
+      #351326 0%,
+      #100711 50%,
+      #050307 100%
+    );
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  text-align:center;
+  padding:30px;
+}
+
+.phoneIcon{
+  font-size:58px;
+  margin-bottom:25px;
+  animation:rotatePhone 2s infinite ease-in-out;
+}
+
+@keyframes rotatePhone{
+  0%{transform:rotate(0deg)}
+  50%{transform:rotate(90deg)}
+  100%{transform:rotate(90deg)}
+}
+
+.portraitTitle{
+  font-size:20px;
+  font-weight:bold;
+  letter-spacing:3px;
+  color:#e7c7ff;
+}
+
+.portraitText{
+  margin-top:12px;
+  color:#a98bb5;
+  font-size:11px;
+  letter-spacing:2px;
+  line-height:1.7;
+}
+
+/*
+  Show the orientation warning while the game
+  is portrait AND the player has already started.
+*/
+@media (orientation:portrait){
+
+  body.gameStarted #portraitWarning{
+    display:flex;
+  }
+
+  body.gameStarted #game,
+  body.gameStarted #hud,
+  body.gameStarted .scanlines{
+    display:none;
+  }
+}
+
+/* Landscape optimization */
+@media (orientation:landscape){
+
+  #joystick{
+    left:30px;
+    bottom:25px;
+  }
+
+  .controls{
+    right:30px;
+    bottom:25px;
+  }
+}
 </style>
 </head>
+
 <body>
+
+<!-- =========================
+     GAME
+========================= -->
+
 <div id="game"></div>
-<div id="loading"><div class="logo">NEXUS</div><div class="subtitle">AURELIS // CHAPTER 01</div><div class="loading-bar"><div class="loading-fill"></div></div></div>
+
+<!-- =========================
+     START SCREEN
+========================= -->
+
+<div id="loading">
+
+  <div class="logo">NEXUS</div>
+
+  <div class="subtitle">
+    AURELIS // CHAPTER 01
+  </div>
+
+  <div class="loading-bar">
+    <div class="loading-fill"></div>
+  </div>
+
+  <button id="playBtn">
+    PLAY NEXUS
+  </button>
+
+  <div id="rotateHint">
+    LANDSCAPE MODE RECOMMENDED
+  </div>
+
+</div>
+
+<!-- =========================
+     PORTRAIT WARNING
+========================= -->
+
+<div id="portraitWarning">
+
+  <div class="phoneIcon">
+    📱
+  </div>
+
+  <div class="portraitTitle">
+    ROTATE DEVICE
+  </div>
+
+  <div class="portraitText">
+    NEXUS IS DESIGNED FOR<br>
+    LANDSCAPE GAMEPLAY
+  </div>
+
+</div>
+
+<!-- =========================
+     HUD
+========================= -->
+
 <div id="hud">
-<div class="top"><div class="system">PLANET <strong>AURELIS</strong><br>SECTOR 01 // CRASH SITE</div><div class="system">SUIT <strong>ONLINE</strong><br>LIFE SUPPORT <strong>31%</strong></div></div>
-<div class="objective"><div class="objective-title">CURRENT OBJECTIVE</div><div class="objective-text" id="objective">TALK TO UNKNOWN</div></div>
-<div id="interact">TAP INTERACT TO ACCESS SHIP PANEL</div>
-<div id="joystick"><div id="stick"></div></div>
-<div class="controls"><div class="btn" id="cameraBtn">CAM</div><div class="btn" id="interactBtn">USE</div></div>
-<div id="message"></div></div>
+
+  <div class="top">
+
+    <div class="system">
+      PLANET <strong>AURELIS</strong><br>
+      SECTOR 01 // CRASH SITE
+    </div>
+
+    <div class="system">
+      SUIT <strong>ONLINE</strong><br>
+      LIFE SUPPORT <strong>31%</strong>
+    </div>
+
+  </div>
+
+  <div class="objective">
+
+    <div class="objective-title">
+      CURRENT OBJECTIVE
+    </div>
+
+    <div
+      class="objective-text"
+      id="objective"
+    >
+      TALK TO UNKNOWN
+    </div>
+
+  </div>
+
+  <div id="interact">
+    TAP INTERACT TO ACCESS SHIP PANEL
+  </div>
+
+  <div id="joystick">
+    <div id="stick"></div>
+  </div>
+
+  <div class="controls">
+
+    <div
+      class="btn"
+      id="cameraBtn"
+    >
+      CAM
+    </div>
+
+    <div
+      class="btn"
+      id="interactBtn"
+    >
+      USE
+    </div>
+
+  </div>
+
+  <div id="message"></div>
+
+</div>
+
 <div class="scanlines"></div>
 
-<script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+<!-- =========================
+     THREE.JS
+========================= -->
 
-let scene,camera,renderer,player,ship,nova,thirdPerson=true;
-const clock=new THREE.Clock();
-const keys={forward:false,back:false,left:false,right:false};
-let joystickActive=false,joystickX=0,joystickY=0;
-const objective=document.getElementById("objective");
-const interactHint=document.getElementById("interact");
-const message=document.getElementById("message");
+<script type="module">
+
+import * as THREE from
+'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+
+
+/* =========================
+   VARIABLES
+========================= */
+
+let scene;
+let camera;
+let renderer;
+
+let player;
+let ship;
+let nova;
+
+let thirdPerson = true;
+let gameStarted = false;
+
+const clock = new THREE.Clock();
+
+const keys = {
+  forward:false,
+  back:false,
+  left:false,
+  right:false
+};
+
+let joystickActive = false;
+let joystickX = 0;
+let joystickY = 0;
+
+const objective =
+  document.getElementById("objective");
+
+const interactHint =
+  document.getElementById("interact");
+
+const message =
+  document.getElementById("message");
+
+const loading =
+  document.getElementById("loading");
+
+const playBtn =
+  document.getElementById("playBtn");
+
+
+/* =========================
+   START GAME
+========================= */
+
+playBtn.addEventListener(
+  "click",
+  async () => {
+
+    gameStarted = true;
+
+    document.body.classList.add(
+      "gameStarted"
+    );
+
+    /*
+      Try to enter fullscreen.
+      Android browsers only allow this
+      after a user interaction.
+    */
+
+    try{
+
+      if(
+        document.documentElement.requestFullscreen
+      ){
+
+        await document.documentElement
+          .requestFullscreen();
+
+      }
+
+    }catch(error){
+
+      console.log(
+        "Fullscreen unavailable:",
+        error
+      );
+
+    }
+
+    /*
+      Try to lock the screen
+      to landscape.
+    */
+
+    try{
+
+      if(
+        screen.orientation &&
+        screen.orientation.lock
+      ){
+
+        await screen.orientation.lock(
+          "landscape"
+        );
+
+      }
+
+    }catch(error){
+
+      console.log(
+        "Landscape lock unavailable:",
+        error
+      );
+
+    }
+
+    /*
+      Start the game.
+    */
+
+    loading.style.opacity = "0";
+
+    setTimeout(() => {
+
+      loading.style.display = "none";
+
+      if(!scene){
+
+        init();
+
+      }
+
+    },800);
+
+  }
+);
+
+
+/* =========================
+   INITIALIZE
+========================= */
 
 function init(){
-scene=new THREE.Scene();scene.background=new THREE.Color(0x140817);scene.fog=new THREE.FogExp2(0x5c294d,.018);
-camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,1000);
-renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
-renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;document.getElementById("game").appendChild(renderer.domElement);
-createLighting();createWorld();createPlayer();createShip();createNova();createStars();setupControls();camera.position.set(0,4,7);
-addEventListener("resize",onResize);
-setTimeout(()=>{document.getElementById("loading").style.opacity="0";setTimeout(()=>document.getElementById("loading").style.display="none",1000)},2300);
-animate();
+
+  scene =
+    new THREE.Scene();
+
+  scene.background =
+    new THREE.Color(
+      0x140817
+    );
+
+  scene.fog =
+    new THREE.FogExp2(
+      0x5c294d,
+      .018
+    );
+
+
+  camera =
+    new THREE.PerspectiveCamera(
+      65,
+      innerWidth / innerHeight,
+      .1,
+      1000
+    );
+
+
+  renderer =
+    new THREE.WebGLRenderer({
+      antialias:true,
+      powerPreference:
+        "high-performance"
+    });
+
+
+  renderer.setSize(
+    innerWidth,
+    innerHeight
+  );
+
+
+  renderer.setPixelRatio(
+    Math.min(
+      devicePixelRatio,
+      1.7
+    )
+  );
+
+
+  renderer.shadowMap.enabled =
+    true;
+
+  renderer.shadowMap.type =
+    THREE.PCFSoftShadowMap;
+
+
+  document
+    .getElementById("game")
+    .appendChild(
+      renderer.domElement
+    );
+
+
+  createLighting();
+  createWorld();
+  createPlayer();
+  createShip();
+  createNova();
+  createStars();
+
+  setupControls();
+
+
+  camera.position.set(
+    0,
+    4,
+    7
+  );
+
+
+  addEventListener(
+    "resize",
+    onResize
+  );
+
+
+  animate();
+
 }
+
+
+/* =========================
+   LIGHTING
+========================= */
+
 function createLighting(){
-scene.add(new THREE.HemisphereLight(0xffc0dc,0x160b20,1.5));
-const moon=new THREE.DirectionalLight(0xc9a4ff,2.2);moon.position.set(-40,60,-30);moon.castShadow=true;moon.shadow.mapSize.width=1024;moon.shadow.mapSize.height=1024;scene.add(moon);
-const red=new THREE.PointLight(0xff4d31,8,30);red.position.set(3,3,-8);scene.add(red);
+
+  scene.add(
+    new THREE.HemisphereLight(
+      0xffc0dc,
+      0x160b20,
+      1.5
+    )
+  );
+
+
+  const moon =
+    new THREE.DirectionalLight(
+      0xc9a4ff,
+      2.2
+    );
+
+  moon.position.set(
+    -40,
+    60,
+    -30
+  );
+
+  moon.castShadow = true;
+
+  moon.shadow.mapSize.width =
+    1024;
+
+  moon.shadow.mapSize.height =
+    1024;
+
+  scene.add(moon);
+
+
+  const red =
+    new THREE.PointLight(
+      0xff4d31,
+      8,
+      30
+    );
+
+  red.position.set(
+    3,
+    3,
+    -8
+  );
+
+  scene.add(red);
+
 }
+
+
+/* =========================
+   AURELIS WORLD
+========================= */
+
 function createWorld(){
-const g=new THREE.PlaneGeometry(250,250,70,70),p=g.attributes.position;
-for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);p.setZ(i,Math.sin(x*.09)*1.8+Math.cos(y*.12)*1.4+Math.sin(x*.025+y*.03)*3)}g.computeVertexNormals();
-const terrain=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x713b38,roughness:1,metalness:.05}));terrain.rotation.x=-Math.PI/2;terrain.receiveShadow=true;scene.add(terrain);
-for(let i=0;i<70;i++){const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(Math.random()*1.5+.5,1),new THREE.MeshStandardMaterial({color:Math.random()>.5?0x492b35:0x63363a,roughness:1}));const x=(Math.random()-.5)*130,z=(Math.random()-.5)*130;if(Math.abs(x)<15&&Math.abs(z)<15)continue;rock.position.set(x,.8,z);rock.scale.y=Math.random()*2+.7;rock.rotation.set(Math.random(),Math.random(),Math.random());rock.castShadow=true;scene.add(rock)}
-for(let i=0;i<16;i++){const m=new THREE.Mesh(new THREE.ConeGeometry(Math.random()*8+5,Math.random()*18+12,6),new THREE.MeshStandardMaterial({color:0x321b32,roughness:1}));const a=i/16*Math.PI*2;m.position.set(Math.cos(a)*70,5,Math.sin(a)*70);scene.add(m)}
+
+  const g =
+    new THREE.PlaneGeometry(
+      250,
+      250,
+      70,
+      70
+    );
+
+  const p =
+    g.attributes.position;
+
+
+  for(
+    let i = 0;
+    i < p.count;
+    i++
+  ){
+
+    const x =
+      p.getX(i);
+
+    const y =
+      p.getY(i);
+
+
+    p.setZ(
+      i,
+
+      Math.sin(x * .09) * 1.8 +
+
+      Math.cos(y * .12) * 1.4 +
+
+      Math.sin(
+        x * .025 +
+        y * .03
+      ) * 3
+    );
+
+  }
+
+
+  g.computeVertexNormals();
+
+
+  const terrain =
+    new THREE.Mesh(
+      g,
+
+      new THREE.MeshStandardMaterial({
+        color:0x713b38,
+        roughness:1,
+        metalness:.05
+      })
+    );
+
+
+  terrain.rotation.x =
+    -Math.PI / 2;
+
+  terrain.receiveShadow =
+    true;
+
+  scene.add(terrain);
+
+
+  /*
+    Rocks
+  */
+
+  for(
+    let i = 0;
+    i < 70;
+    i++
+  ){
+
+    const rock =
+      new THREE.Mesh(
+
+        new THREE.DodecahedronGeometry(
+          Math.random() * 1.5 + .5,
+          1
+        ),
+
+        new THREE.MeshStandardMaterial({
+          color:
+            Math.random() > .5
+              ? 0x492b35
+              : 0x63363a,
+
+          roughness:1
+        })
+
+      );
+
+
+    const x =
+      (Math.random() - .5) * 130;
+
+    const z =
+      (Math.random() - .5) * 130;
+
+
+    if(
+      Math.abs(x) < 15 &&
+      Math.abs(z) < 15
+    ){
+
+      continue;
+
+    }
+
+
+    rock.position.set(
+      x,
+      .8,
+      z
+    );
+
+
+    rock.scale.y =
+      Math.random() * 2 + .7;
+
+
+    rock.rotation.set(
+      Math.random(),
+      Math.random(),
+      Math.random()
+    );
+
+
+    rock.castShadow =
+      true;
+
+    scene.add(rock);
+
+  }
+
+
+  /*
+    Giant distant formations
+  */
+
+  for(
+    let i = 0;
+    i < 16;
+    i++
+  ){
+
+    const mountain =
+      new THREE.Mesh(
+
+        new THREE.ConeGeometry(
+          Math.random() * 8 + 5,
+          Math.random() * 18 + 12,
+          6
+        ),
+
+        new THREE.MeshStandardMaterial({
+          color:0x321b32,
+          roughness:1
+        })
+
+      );
+
+
+    const angle =
+      i / 16 *
+      Math.PI *
+      2;
+
+
+    mountain.position.set(
+      Math.cos(angle) * 70,
+      5,
+      Math.sin(angle) * 70
+    );
+
+
+    scene.add(mountain);
+
+  }
+
 }
+
+
+/* =========================
+   PLAYER
+========================= */
+
 function createPlayer(){
-player=new THREE.Group();
-const body=new THREE.Mesh(new THREE.CapsuleGeometry(.42,1.1,6,12),new THREE.MeshStandardMaterial({color:0x26242c,roughness:.55,metalness:.25}));body.position.y=1.25;body.castShadow=true;player.add(body);
-const helmet=new THREE.Mesh(new THREE.SphereGeometry(.36,16,12),new THREE.MeshStandardMaterial({color:0x18191d,metalness:.6,roughness:.25}));helmet.position.y=2.15;player.add(helmet);
-const visor=new THREE.Mesh(new THREE.SphereGeometry(.22,16,8),new THREE.MeshBasicMaterial({color:0x8c4cff}));visor.scale.set(1,.55,.35);visor.position.set(0,2.16,-.28);player.add(visor);
-player.position.set(0,0,5);scene.add(player);
+
+  player =
+    new THREE.Group();
+
+
+  const body =
+    new THREE.Mesh(
+
+      new THREE.CapsuleGeometry(
+        .42,
+        1.1,
+        6,
+        12
+      ),
+
+      new THREE.MeshStandardMaterial({
+        color:0x26242c,
+        roughness:.55,
+        metalness:.25
+      })
+
+    );
+
+
+  body.position.y =
+    1.25;
+
+  body.castShadow =
+    true;
+
+  player.add(body);
+
+
+  /*
+    Helmet
+  */
+
+  const helmet =
+    new THREE.Mesh(
+
+      new THREE.SphereGeometry(
+        .36,
+        16,
+        12
+      ),
+
+      new THREE.MeshStandardMaterial({
+        color:0x18191d,
+        metalness:.6,
+        roughness:.25
+      })
+
+    );
+
+
+  helmet.position.y =
+    2.15;
+
+  player.add(helmet);
+
+
+  /*
+    Purple visor
+  */
+
+  const visor =
+    new THREE.Mesh(
+
+      new THREE.SphereGeometry(
+        .22,
+        16,
+        8
+      ),
+
+      new THREE.MeshBasicMaterial({
+        color:0x8c4cff
+      })
+
+    );
+
+
+  visor.scale.set(
+    1,
+    .55,
+    .35
+  );
+
+
+  visor.position.set(
+    0,
+    2.16,
+    -.28
+  );
+
+
+  player.add(visor);
+
+
+  player.position.set(
+    0,
+    0,
+    5
+  );
+
+
+  scene.add(player);
+
 }
+
+
+/* =========================
+   CRASHED SHIP
+========================= */
+
 function createShip(){
-ship=new THREE.Group();ship.position.set(7,1,-7);ship.rotation.y=-.35;
-const hull=new THREE.Mesh(new THREE.CylinderGeometry(2.2,3.2,11,8),new THREE.MeshStandardMaterial({color:0x55515b,metalness:.8,roughness:.35}));hull.rotation.z=Math.PI/2;hull.rotation.y=.15;hull.castShadow=true;ship.add(hull);
-const cockpit=new THREE.Mesh(new THREE.SphereGeometry(1.4,20,12),new THREE.MeshStandardMaterial({color:0x261f31,metalness:.5,roughness:.2,emissive:0x30104c,emissiveIntensity:.5}));cockpit.scale.set(1.3,.6,1);cockpit.position.set(-3.8,.4,0);ship.add(cockpit);
-for(let i=-1;i<=1;i++){const e=new THREE.Mesh(new THREE.CylinderGeometry(.35,.5,1.2,12),new THREE.MeshBasicMaterial({color:0xff6338}));e.rotation.z=Math.PI/2;e.position.set(5.3,i*.8,0);ship.add(e)}
-const wing=new THREE.Mesh(new THREE.BoxGeometry(5,.25,2),new THREE.MeshStandardMaterial({color:0x39363e,metalness:.7,roughness:.4}));wing.position.set(1,.2,2.5);wing.rotation.y=-.4;wing.rotation.z=-.2;ship.add(wing);scene.add(ship);
+
+  ship =
+    new THREE.Group();
+
+
+  ship.position.set(
+    7,
+    1,
+    -7
+  );
+
+
+  ship.rotation.y =
+    -.35;
+
+
+  /*
+    Hull
+  */
+
+  const hull =
+    new THREE.Mesh(
+
+      new THREE.CylinderGeometry(
+        2.2,
+        3.2,
+        11,
+        8
+      ),
+
+      new THREE.MeshStandardMaterial({
+        color:0x55515b,
+        metalness:.8,
+        roughness:.35
+      })
+
+    );
+
+
+  hull.rotation.z =
+    Math.PI / 2;
+
+  hull.rotation.y =
+    .15;
+
+  hull.castShadow =
+    true;
+
+  ship.add(hull);
+
+
+  /*
+    Cockpit
+  */
+
+  const cockpit =
+    new THREE.Mesh(
+
+      new THREE.SphereGeometry(
+        1.4,
+        20,
+        12
+      ),
+
+      new THREE.MeshStandardMaterial({
+        color:0x261f31,
+        metalness:.5,
+        roughness:.2,
+        emissive:0x30104c,
+        emissiveIntensity:.5
+      })
+
+    );
+
+
+  cockpit.scale.set(
+    1.3,
+    .6,
+    1
+  );
+
+
+  cockpit.position.set(
+    -3.8,
+    .4,
+    0
+  );
+
+
+  ship.add(cockpit);
+
+
+  /*
+    Engine lights
+  */
+
+  for(
+    let i = -1;
+    i <= 1;
+    i++
+  ){
+
+    const engine =
+      new THREE.Mesh(
+
+        new THREE.CylinderGeometry(
+          .35,
+          .5,
+          1.2,
+          12
+        ),
+
+        new THREE.MeshBasicMaterial({
+          color:0xff6338
+        })
+
+      );
+
+
+    engine.rotation.z =
+      Math.PI / 2;
+
+
+    engine.position.set(
+      5.3,
+      i * .8,
+      0
+    );
+
+
+    ship.add(engine);
+
+  }
+
+
+  /*
+    Wing
+  */
+
+  const wing =
+    new THREE.Mesh(
+
+      new THREE.BoxGeometry(
+        5,
+        .25,
+        2
+      ),
+
+      new THREE.MeshStandardMaterial({
+        color:0x39363e,
+        metalness:.7,
+        roughness:.4
+      })
+
+    );
+
+
+  wing.position.set(
+    1,
+    .2,
+    2.5
+  );
+
+
+  wing.rotation.y =
+    -.4;
+
+  wing.rotation.z =
+    -.2;
+
+
+  ship.add(wing);
+
+
+  scene.add(ship);
+
 }
+
+
+/* =========================
+   NOVA ROBOT
+========================= */
+
 function createNova(){
-nova=new THREE.Group();nova.position.set(3.7,.9,1.5);
-const body=new THREE.Mesh(new THREE.SphereGeometry(.7,24,16),new THREE.MeshStandardMaterial({color:0x777983,metalness:.8,roughness:.25}));body.castShadow=true;nova.add(body);
-const eye=new THREE.Mesh(new THREE.SphereGeometry(.25,16,12),new THREE.MeshBasicMaterial({color:0x65eaff}));eye.position.set(0,.12,-.62);nova.add(eye);
-const antenna=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,.8,8),new THREE.MeshStandardMaterial({color:0x55545c,metalness:.8}));antenna.position.y=.72;nova.add(antenna);
-const light=new THREE.PointLight(0x5cecff,2,5);light.position.set(0,.1,-.7);nova.add(light);scene.add(nova);
+
+  nova =
+    new THREE.Group();
+
+
+  nova.position.set(
+    3.7,
+    .9,
+    1.5
+  );
+
+
+  /*
+    Spherical body
+  */
+
+  const body =
+    new THREE.Mesh(
+
+      new THREE.SphereGeometry(
+        .7,
+        24,
+        16
+      ),
+
+      new THREE.MeshStandardMaterial({
+        color:0x777983,
+        metalness:.8,
+        roughness:.25
+      })
+
+    );
+
+
+  body.castShadow =
+    true;
+
+
+  nova.add(body);
+
+
+  /*
+    Main sensor eye
+  */
+
+  const eye =
+    new THREE.Mesh(
+
+      new THREE.SphereGeometry(
+        .25,
+        16,
+        12
+      ),
+
+      new THREE.MeshBasicMaterial({
+        color:0x65eaff
+      })
+
+    );
+
+
+  eye.position.set(
+    0,
+    .12,
+    -.62
+  );
+
+
+  nova.add(eye);
+
+
+  /*
+    Antenna
+  */
+
+  const antenna =
+    new THREE.Mesh(
+
+      new THREE.CylinderGeometry(
+        .04,
+        .04,
+        .8,
+        8
+      ),
+
+      new THREE.MeshStandardMaterial({
+        color:0x55545c,
+        metalness:.8
+      })
+
+    );
+
+
+  antenna.position.y =
+    .72;
+
+
+  nova.add(antenna);
+
+
+  /*
+    NOVA light
+  */
+
+  const light =
+    new THREE.PointLight(
+      0x5cecff,
+      2,
+      5
+    );
+
+
+  light.position.set(
+    0,
+    .1,
+    -.7
+  );
+
+
+  nova.add(light);
+
+
+  scene.add(nova);
+
 }
+
+
+/* =========================
+   STARS
+========================= */
+
 function createStars(){
-const g=new THREE.BufferGeometry(),count=900,d=new Float32Array(count*3);
-for(let i=0;i<count;i++){d[i*3]=(Math.random()-.5)*500;d[i*3+1]=Math.random()*150+20;d[i*3+2]=(Math.random()-.5)*500}
-g.setAttribute("position",new THREE.BufferAttribute(d,3));scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0xf0dfff,size:.25,transparent:true,opacity:.7})));
+
+  const g =
+    new THREE.BufferGeometry();
+
+  const count =
+    900;
+
+  const d =
+    new Float32Array(
+      count * 3
+    );
+
+
+  for(
+    let i = 0;
+    i < count;
+    i++
+  ){
+
+    d[i * 3] =
+      (Math.random() - .5) *
+      500;
+
+    d[i * 3 + 1] =
+      Math.random() *
+      150 + 20;
+
+    d[i * 3 + 2] =
+      (Math.random() - .5) *
+      500;
+
+  }
+
+
+  g.setAttribute(
+    "position",
+    new THREE.BufferAttribute(
+      d,
+      3
+    )
+  );
+
+
+  scene.add(
+
+    new THREE.Points(
+
+      g,
+
+      new THREE.PointsMaterial({
+        color:0xf0dfff,
+        size:.25,
+        transparent:true,
+        opacity:.7
+      })
+
+    )
+
+  );
+
 }
+
+
+/* =========================
+   CONTROLS
+========================= */
+
 function setupControls(){
-addEventListener("keydown",e=>{if(e.key==="w")keys.forward=true;if(e.key==="s")keys.back=true;if(e.key==="a")keys.left=true;if(e.key==="d")keys.right=true});
-addEventListener("keyup",e=>{if(e.key==="w")keys.forward=false;if(e.key==="s")keys.back=false;if(e.key==="a")keys.left=false;if(e.key==="d")keys.right=false});
-document.getElementById("cameraBtn").onclick=()=>{thirdPerson=!thirdPerson;showMessage(thirdPerson?"THIRD-PERSON CAMERA":"FIRST-PERSON CAMERA")};
-document.getElementById("interactBtn").onclick=interact;
-const joystick=document.getElementById("joystick"),stick=document.getElementById("stick");
-joystick.addEventListener("touchstart",e=>{joystickActive=true;e.preventDefault()},{passive:false});
-joystick.addEventListener("touchmove",e=>{if(!joystickActive)return;const r=joystick.getBoundingClientRect(),t=e.touches[0];let x=t.clientX-(r.left+r.width/2),y=t.clientY-(r.top+r.height/2),max=r.width/2-24,dist=Math.hypot(x,y);if(dist>max){x=x/dist*max;y=y/dist*max}joystickX=x/max;joystickY=y/max;stick.style.transform=`translate(calc(-50% + ${x}px),calc(-50% + ${y}px))`;e.preventDefault()},{passive:false});
-joystick.addEventListener("touchend",()=>{joystickActive=false;joystickX=joystickY=0;stick.style.transform="translate(-50%,-50%)"});
+
+  /*
+    Keyboard
+  */
+
+  addEventListener(
+    "keydown",
+    e => {
+
+      if(e.key === "w")
+        keys.forward = true;
+
+      if(e.key === "s")
+        keys.back = true;
+
+      if(e.key === "a")
+        keys.left = true;
+
+      if(e.key === "d")
+        keys.right = true;
+
+    }
+  );
+
+
+  addEventListener(
+    "keyup",
+    e => {
+
+      if(e.key === "w")
+        keys.forward = false;
+
+      if(e.key === "s")
+        keys.back = false;
+
+      if(e.key === "a")
+        keys.left = false;
+
+      if(e.key === "d")
+        keys.right = false;
+
+    }
+  );
+
+
+  /*
+    Camera button
+  */
+
+  document
+    .getElementById("cameraBtn")
+    .onclick = () => {
+
+      thirdPerson =
+        !thirdPerson;
+
+      showMessage(
+        thirdPerson
+          ? "THIRD-PERSON CAMERA"
+          : "FIRST-PERSON CAMERA"
+      );
+
+    };
+
+
+  /*
+    Interaction button
+  */
+
+  document
+    .getElementById("interactBtn")
+    .onclick =
+      interact;
+
+
+  /*
+    Mobile joystick
+  */
+
+  const joystick =
+    document.getElementById(
+      "joystick"
+    );
+
+  const stick =
+    document.getElementById(
+      "stick"
+    );
+
+
+  joystick.addEventListener(
+    "touchstart",
+    e => {
+
+      joystickActive =
+        true;
+
+      e.preventDefault();
+
+    },
+    {
+      passive:false
+    }
+  );
+
+
+  joystick.addEventListener(
+    "touchmove",
+    e => {
+
+      if(!joystickActive)
+        return;
+
+
+      const r =
+        joystick.getBoundingClientRect();
+
+
+      const t =
+        e.touches[0];
+
+
+      let x =
+        t.clientX -
+        (
+          r.left +
+          r.width / 2
+        );
+
+
+      let y =
+        t.clientY -
+        (
+          r.top +
+          r.height / 2
+        );
+
+
+      const max =
+        r.width / 2 - 24;
+
+
+      const dist =
+        Math.hypot(
+          x,
+          y
+        );
+
+
+      if(dist > max){
+
+        x =
+          x / dist * max;
+
+        y =
+          y / dist * max;
+
+      }
+
+
+      joystickX =
+        x / max;
+
+      joystickY =
+        y / max;
+
+
+      stick.style.transform =
+        `translate(
+          calc(-50% + ${x}px),
+          calc(-50% + ${y}px)
+        )`;
+
+
+      e.preventDefault();
+
+    },
+    {
+      passive:false
+    }
+  );
+
+
+  joystick.addEventListener(
+    "touchend",
+    () => {
+
+      joystickActive =
+        false;
+
+      joystickX = 0;
+      joystickY = 0;
+
+      stick.style.transform =
+        "translate(-50%,-50%)";
+
+    }
+  );
+
 }
+
+
+/* =========================
+   INTERACTION
+========================= */
+
 function interact(){
-if(player.position.distanceTo(ship.position)<14){objective.innerText="LISTEN TO HEMTON";showMessage("HEMTON: Critical systems failure detected... and you're finally awake.");interactHint.style.display="none"}else showMessage("Move closer to the crashed ship.")
+
+  if(
+    player.position.distanceTo(
+      ship.position
+    ) < 14
+  ){
+
+    objective.innerText =
+      "LISTEN TO HEMTON";
+
+
+    showMessage(
+      "HEMTON: Critical systems failure detected... and you're finally awake."
+    );
+
+
+    interactHint.style.display =
+      "none";
+
+  }else{
+
+    showMessage(
+      "Move closer to the crashed ship."
+    );
+
+  }
+
 }
-function showMessage(t){message.innerText=t;message.style.display="block";clearTimeout(showMessage.timer);showMessage.timer=setTimeout(()=>message.style.display="none",5000)}
+
+
+/* =========================
+   MESSAGE
+========================= */
+
+function showMessage(t){
+
+  message.innerText =
+    t;
+
+  message.style.display =
+    "block";
+
+
+  clearTimeout(
+    showMessage.timer
+  );
+
+
+  showMessage.timer =
+    setTimeout(
+      () => {
+
+        message.style.display =
+          "none";
+
+      },
+      5000
+    );
+
+}
+
+
+/* =========================
+   PLAYER MOVEMENT
+========================= */
+
 function updatePlayer(delta){
-let x=0,z=0;if(keys.forward)z-=1;if(keys.back)z+=1;if(keys.left)x-=1;if(keys.right)x+=1;x+=joystickX;z+=joystickY;const len=Math.hypot(x,z);if(len>1){x/=len;z/=len}const speed=5*delta;player.position.x+=x*speed;player.position.z+=z*speed;if(len>.1)player.rotation.y=Math.atan2(x,z)
+
+  let x = 0;
+  let z = 0;
+
+
+  if(keys.forward)
+    z -= 1;
+
+  if(keys.back)
+    z += 1;
+
+  if(keys.left)
+    x -= 1;
+
+  if(keys.right)
+    x += 1;
+
+
+  x += joystickX;
+  z += joystickY;
+
+
+  const len =
+    Math.hypot(
+      x,
+      z
+    );
+
+
+  if(len > 1){
+
+    x /= len;
+    z /= len;
+
+  }
+
+
+  const speed =
+    5 * delta;
+
+
+  player.position.x +=
+    x * speed;
+
+  player.position.z +=
+    z * speed;
+
+
+  if(len > .1){
+
+    player.rotation.y =
+      Math.atan2(
+        x,
+        z
+      );
+
+  }
+
 }
+
+
+/* =========================
+   CAMERA
+========================= */
+
 function updateCamera(){
-if(thirdPerson){const o=new THREE.Vector3(0,4.2,7);o.applyAxisAngle(new THREE.Vector3(0,1,0),player.rotation.y);camera.position.lerp(player.position.clone().add(o),.08);camera.lookAt(player.position.x,player.position.y+1.2,player.position.z)}
-else{const h=player.position.clone();h.y+=2.1;camera.position.lerp(h,.15);const d=new THREE.Vector3(0,0,-1).applyQuaternion(player.quaternion);camera.lookAt(h.clone().add(d.multiplyScalar(10)))}
+
+  if(thirdPerson){
+
+    const o =
+      new THREE.Vector3(
+        0,
+        4.2,
+        7
+      );
+
+
+    o.applyAxisAngle(
+      new THREE.Vector3(
+        0,
+        1,
+        0
+      ),
+      player.rotation.y
+    );
+
+
+    camera.position.lerp(
+      player.position
+        .clone()
+        .add(o),
+      .08
+    );
+
+
+    camera.lookAt(
+      player.position.x,
+      player.position.y + 1.2,
+      player.position.z
+    );
+
+  }else{
+
+    const h =
+      player.position.clone();
+
+
+    h.y += 2.1;
+
+
+    camera.position.lerp(
+      h,
+      .15
+    );
+
+
+    const d =
+      new THREE.Vector3(
+        0,
+        0,
+        -1
+      )
+      .applyQuaternion(
+        player.quaternion
+      );
+
+
+    camera.lookAt(
+      h.clone().add(
+        d.multiplyScalar(10)
+      )
+    );
+
+  }
+
 }
-function updateNova(time){nova.position.y=.9+Math.sin(time*2)*.04;nova.rotation.y+=.003}
-function updateInteraction(){if(player.position.distanceTo(ship.position)<14&&objective.innerText==="TALK TO UNKNOWN")interactHint.style.display="block";else interactHint.style.display="none"}
-function animate(){requestAnimationFrame(animate);const delta=Math.min(clock.getDelta(),.05),time=performance.now()*.001;updatePlayer(delta);updateCamera();updateNova(time);updateInteraction();renderer.render(scene,camera)}
-function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}
-init();
+
+
+/* =========================
+   NOVA ANIMATION
+========================= */
+
+function updateNova(time){
+
+  nova.position.y =
+    .9 +
+    Math.sin(
+      time * 2
+    ) * .04;
+
+
+  nova.rotation.y +=
+    .003;
+
+}
+
+
+/* =========================
+   INTERACTION CHECK
+========================= */
+
+function updateInteraction(){
+
+  if(
+    player.position.distanceTo(
+      ship.position
+    ) < 14 &&
+    objective.innerText ===
+      "TALK TO UNKNOWN"
+  ){
+
+    interactHint.style.display =
+      "block";
+
+  }else{
+
+    interactHint.style.display =
+      "none";
+
+  }
+
+}
+
+
+/* =========================
+   GAME LOOP
+========================= */
+
+function animate(){
+
+  requestAnimationFrame(
+    animate
+  );
+
+
+  const delta =
+    Math.min(
+      clock.getDelta(),
+      .05
+    );
+
+
+  const time =
+    performance.now() * .001;
+
+
+  updatePlayer(
+    delta
+  );
+
+
+  updateCamera();
+
+
+  updateNova(
+    time
+  );
+
+
+  updateInteraction();
+
+
+  renderer.render(
+    scene,
+    camera
+  );
+
+}
+
+
+/* =========================
+   RESIZE
+========================= */
+
+function onResize(){
+
+  if(!camera || !renderer)
+    return;
+
+
+  camera.aspect =
+    innerWidth /
+    innerHeight;
+
+
+  camera.updateProjectionMatrix();
+
+
+  renderer.setSize(
+    innerWidth,
+    innerHeight
+  );
+
+}
+
+
+/* =========================
+   ORIENTATION CHANGE
+========================= */
+
+addEventListener(
+  "orientationchange",
+  () => {
+
+    setTimeout(
+      () => {
+
+        if(camera){
+
+          onResize();
+
+        }
+
+      },
+      300
+    );
+
+  }
+);
+
 </script>
+
 </body>
 </html>
