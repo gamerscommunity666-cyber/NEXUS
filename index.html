@@ -9,23 +9,46 @@
 <title>NEXUS — AURELIS</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050309;color:#fff;font-family:Arial,sans-serif;touch-action:none}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050309;color:#fff;font-family:Arial,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
 canvas{display:block;position:fixed;inset:0}
 #game{position:fixed;inset:0;overflow:hidden}
 #rotate{position:fixed;inset:0;z-index:100;background:#08050d;display:none;align-items:center;justify-content:center;text-align:center;padding:30px}
 #rotate div{font-size:22px;font-weight:bold;line-height:1.5}
 #rotate span{display:block;font-size:50px;margin-bottom:15px}
+
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
-#objective{position:absolute;top:18px;left:18px;padding:10px 15px;border:1px solid rgba(255,255,255,.2);border-radius:10px;background:rgba(5,3,9,.58);backdrop-filter:blur(8px);font-size:13px;letter-spacing:1px}
+#topLeft{position:absolute;top:18px;left:18px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;max-width:min(430px,58vw)}
+#objective{padding:10px 15px;border:1px solid rgba(255,255,255,.2);border-radius:10px;background:rgba(5,3,9,.58);backdrop-filter:blur(8px);font-size:13px;letter-spacing:1px}
 #objective b{display:block;color:#b99cff;font-size:10px;margin-bottom:4px}
+#objectiveText{display:block;font-weight:bold;font-size:14px}
+#objectiveSub{display:block;margin-top:5px;font-size:10px;letter-spacing:.8px;color:#d9c9ff;opacity:.9}
+#objective.pulse{animation:pulse .9s ease-out}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(176,102,255,.9);border-color:#b066ff}100%{box-shadow:0 0 0 14px rgba(176,102,255,0)}}
+#inv{display:none;gap:6px;flex-wrap:wrap}
+.chip{padding:5px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(5,3,9,.58);backdrop-filter:blur(8px);font-size:10px;letter-spacing:.8px;white-space:nowrap}
+.chip i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--c);box-shadow:0 0 8px var(--c)}
+.chip b{margin-left:5px}
+.chip.bump{animation:bump .35s ease-out}
+@keyframes bump{0%{transform:scale(1.25)}100%{transform:scale(1)}}
 #status{position:absolute;left:18px;bottom:18px;font-size:11px;color:#d9d0e8;background:rgba(5,3,9,.5);padding:7px 10px;border-radius:8px}
+#toast{position:absolute;top:18px;left:50%;transform:translateX(-50%);padding:8px 14px;border-radius:10px;border:1px solid rgba(180,140,255,.35);background:rgba(8,5,15,.8);backdrop-filter:blur(8px);font-size:12px;letter-spacing:1px;display:none;text-align:center;max-width:36vw}
 #message{position:absolute;left:50%;bottom:25%;transform:translateX(-50%);width:min(620px,82vw);padding:15px 18px;border-radius:12px;border:1px solid rgba(180,140,255,.4);background:rgba(8,5,15,.84);backdrop-filter:blur(10px);font-size:14px;line-height:1.5;display:none;text-align:center}
+#message .spk{display:block;font-size:10px;letter-spacing:2px;margin-bottom:5px}
+#prompt{position:absolute;left:50%;bottom:13%;transform:translateX(-50%);padding:8px 16px;border-radius:999px;border:1px solid rgba(185,156,255,.6);background:rgba(40,20,70,.6);backdrop-filter:blur(8px);font-size:12px;letter-spacing:2px;display:none;white-space:nowrap}
+#progress{position:absolute;left:50%;bottom:24%;transform:translateX(-50%);width:min(280px,60vw);display:none;text-align:center;font-size:11px;letter-spacing:2px}
+#progBar{height:6px;margin-top:8px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden}
+#progBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#8a4dff,#6fe0ff)}
+#wp{position:absolute;left:0;top:0;width:0;height:0;display:none;--c:#b99cff}
+#wp .dia{position:absolute;left:-8px;top:-8px;width:16px;height:16px;border:2px solid var(--c);transform:rotate(45deg);box-shadow:0 0 12px var(--c);background:rgba(0,0,0,.3)}
+#wp .lbl{position:absolute;left:-70px;width:140px;top:14px;text-align:center;font-size:10px;letter-spacing:1px;color:#fff;text-shadow:0 0 6px #000,0 0 3px #000}
+#wp .arr{position:absolute;left:-12px;top:-12px;width:24px;height:24px;display:none;color:var(--c);font-size:22px;line-height:24px;text-align:center;text-shadow:0 0 10px var(--c)}
+
 #controls{position:fixed;inset:0;z-index:20;pointer-events:none}
 #lookArea{position:absolute;right:0;top:0;width:58%;height:100%;pointer-events:auto}
 #joystickZone{position:absolute;left:0;bottom:0;width:48%;height:72%;pointer-events:auto}
 #joystick{position:absolute;width:132px;height:132px;border-radius:50%;display:none;pointer-events:none;border:2px solid rgba(210,180,255,.32);background:rgba(90,55,120,.14);box-shadow:0 0 25px rgba(130,80,220,.12)}
 #stick{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px;border-radius:50%;background:rgba(210,185,255,.42);border:2px solid rgba(255,255,255,.5);box-shadow:0 5px 20px rgba(0,0,0,.35)}
-.btn{position:absolute;pointer-events:auto;border:1px solid rgba(255,255,255,.25);background:rgba(18,12,28,.55);color:#fff;border-radius:50%;font-size:11px;font-weight:bold;backdrop-filter:blur(8px);width:62px;height:62px}
+.btn{position:absolute;pointer-events:auto;border:1px solid rgba(255,255,255,.25);background:rgba(18,12,28,.55);color:#fff;border-radius:50%;font-size:11px;font-weight:bold;backdrop-filter:blur(8px);width:62px;height:62px;touch-action:none}
 .btn:active{transform:scale(.94);background:rgba(120,75,170,.55)}
 #useBtn{right:26px;bottom:29%;width:70px;height:70px}
 #jumpBtn{right:105px;bottom:17%;width:58px;height:58px}
@@ -52,16 +75,23 @@ canvas{display:block;position:fixed;inset:0}
 <div id="start">
   <div id="startPanel">
     <h1>NEXUS</h1>
-    <p>AURELIS • CHAPTER 1</p>
+    <p>AURELIS • CHAPTER 1 • V0.4</p>
     <button id="play">PLAY NEXUS</button>
     <div id="loading">Initializing exploration system...</div>
   </div>
 </div>
 
 <div id="hud">
-  <div id="objective"><b>OBJECTIVE</b><span id="objectiveText">TALK TO UNKNOWN</span></div>
+  <div id="topLeft">
+    <div id="objective"><b>OBJECTIVE</b><span id="objectiveText">TALK TO HEMTON</span><span id="objectiveSub">GO TO THE CRASHED SHIP</span></div>
+    <div id="inv"></div>
+  </div>
+  <div id="toast"></div>
   <div id="status">AURELIS • CRASH SITE</div>
+  <div id="prompt"></div>
+  <div id="progress"><div id="progLabel"></div><div id="progBar"><i></i></div></div>
   <div id="message"></div>
+  <div id="wp"><div class="dia"></div><div class="arr">&#10148;</div><div class="lbl"></div></div>
 </div>
 
 <div id="controls">
@@ -77,15 +107,21 @@ canvas{display:block;position:fixed;inset:0}
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
 
+/* ============================================================
+   NEXUS V0.4 — AURELIS — Chapter 1 opening sequence
+   ============================================================ */
+
 let scene,camera,renderer,clock;
 let player,ship,nova,terrain;
+let novaBall,novaSensor,novaEyeMat;
+let workbench=null,neutronDevice=null;
+let beamG,beamMat,linkBeam;
 let started=false,thirdPerson=false;
 let yaw=0,pitch=0.18;
-let velocityX=0,velocityZ=0;
+let velocityX=0,velocityZ=0,velocityY=0,grounded=true;
 let joystickActive=false,joyId=null;
 let joyX=0,joyY=0;
 let lookId=null,lastLookX=0,lastLookY=0;
-let interacted=false;
 const keys={};
 
 const game=document.getElementById("game");
@@ -94,13 +130,87 @@ const stick=document.getElementById("stick");
 const joystickZone=document.getElementById("joystickZone");
 const lookArea=document.getElementById("lookArea");
 const message=document.getElementById("message");
+const toastEl=document.getElementById("toast");
+const objectiveBox=document.getElementById("objective");
 const objectiveText=document.getElementById("objectiveText");
+const objectiveSub=document.getElementById("objectiveSub");
+const invEl=document.getElementById("inv");
+const promptEl=document.getElementById("prompt");
+const progressEl=document.getElementById("progress");
+const progLabel=document.getElementById("progLabel");
+const progFill=document.querySelector("#progBar i");
+const wpEl=document.getElementById("wp");
+const wpDia=wpEl.querySelector(".dia");
+const wpArr=wpEl.querySelector(".arr");
+const wpLbl=wpEl.querySelector(".lbl");
 const loading=document.getElementById("loading");
 
+/* ---------- helpers ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rand=mulberry32(20260);
+const rr=(a,b)=>a+(b-a)*rand();
 function makeMat(color,rough=1,metal=0){
  return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal});
 }
+function glowMat(color,opacity=.2){
+ return new THREE.MeshBasicMaterial({color,transparent:true,opacity,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+}
+function lerpAngle(a,b,k){
+ const d=((b-a+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;
+ return a+d*k;
+}
+const dist2D=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 
+/* Same formula as the terrain mesh, so we can read ground height anywhere without raycasting.
+   Plane is rotated -90deg on X: world z = -(plane y). */
+function terrainHeight(wx,wz){
+ const x=wx,z=-wz;
+ let h=Math.sin(x*.055)*2.5+Math.cos(z*.047)*2.2+Math.sin((x+z)*.025)*3;
+ h+=Math.max(0,Math.sin(x*.015)*Math.cos(z*.021))*3;
+ return h;
+}
+
+/* ---------- story data ---------- */
+const NOVA_SPOT={x:-17,z:-24};
+const SHIP_SPOT={x:0,z:-5};
+const RES={
+ metal:{label:"METAL",color:0xc9d2e8,css:"#c9d2e8"},
+ energy:{label:"ENERGY",color:0xb066ff,css:"#b066ff"},
+ parts:{label:"COMPONENTS",color:0x35e0ff,css:"#35e0ff"}
+};
+const NEED={metal:5,energy:3,parts:3};        // total needed (workbench + NEUTRON)
+const WB_COST={metal:3,parts:1};
+const NEUT_COST={metal:2,energy:3,parts:2};
+const inv={metal:0,energy:0,parts:0};
+let neutronBuilt=false;
+
+const ORDER=["HEMTON","NOVA","GATHER","WORKBENCH","NEUTRON","REPAIR","FOLLOW"];
+const OBJ={
+ HEMTON:"TALK TO HEMTON",NOVA:"FIND NOVA",GATHER:"GATHER RESOURCES",
+ WORKBENCH:"BUILD WORKBENCH",NEUTRON:"BUILD NEUTRON",REPAIR:"REPAIR NOVA",FOLLOW:"FOLLOW NOVA"
+};
+let state="HEMTON";
+let novaMode="damaged"; // damaged | repairing | online
+let busy=false;
+
+const HEMTON_HINT={
+ HEMTON:["Systems are unstable. Approach the console."],
+ NOVA:["Auxiliary unit NOVA detected nearby.","Follow the signal."],
+ GATHER:["Salvage Metal, Energy and Components from the crash site."],
+ WORKBENCH:["Build a workbench on open ground, away from the wreckage."],
+ NEUTRON:["Fabricate the NEUTRON at your workbench."],
+ REPAIR:["Bring the NEUTRON to NOVA."],
+ FOLLOW:["NOVA is online. Resume survey of AURELIS."]
+};
+const NOVA_HINT={
+ GATHER:["Salvage Metal, Energy and Components.","Pieces of the wreck are scattered all around."],
+ WORKBENCH:["Find some open ground and build a workbench."],
+ NEUTRON:["The NEUTRON has to be built at the workbench."],
+ REPAIR:["I am ready. Bring the NEUTRON close."],
+ FOLLOW:["Systems nominal. Lead the way."]
+};
+
+/* ---------- world ---------- */
 function createTerrain(){
  const geo=new THREE.PlaneGeometry(500,500,80,80);
  const p=geo.attributes.position;
@@ -113,17 +223,37 @@ function createTerrain(){
  geo.computeVertexNormals();
  terrain=new THREE.Mesh(geo,makeMat(0x673927,1,0));
  terrain.rotation.x=-Math.PI/2;
- terrain.name='AURELIS_TERRAIN';
+ terrain.name="AURELIS_TERRAIN";
  scene.add(terrain);
 
  const rockMat=makeMat(0x43241e,1,0);
- for(let i=0;i<55;i++){
-   const r=new THREE.Mesh(new THREE.DodecahedronGeometry(THREE.MathUtils.randFloat(2,8),1),rockMat);
-   r.position.set((Math.random()-.5)*440,THREE.MathUtils.randFloat(2,7),(Math.random()-.5)*440);
-   r.scale.y=THREE.MathUtils.randFloat(.6,1.8);
-   r.rotation.set(Math.random()*2,Math.random()*3,Math.random()*2);
+ function addRock(x,z,size,sy=1){
+   const r=new THREE.Mesh(new THREE.DodecahedronGeometry(size,1),rockMat);
+   r.position.set(x,terrainHeight(x,z)+size*.35*sy,z);
+   r.scale.y=sy;
+   r.rotation.set(rand()*2,rand()*3,rand()*2);
    scene.add(r);
  }
+ // Giant rock formations far from the crash site
+ let placed=0,tries=0;
+ while(placed<55 && tries<400){
+   tries++;
+   const x=(rand()-.5)*440,z=(rand()-.5)*440;
+   if(Math.hypot(x,z)<48)continue;
+   addRock(x,z,rr(2,8),rr(.6,1.8));
+   placed++;
+ }
+ // Small rocks around the crash site
+ for(let i=0;i<20;i++){
+   const a=rand()*Math.PI*2,r=rr(14,46);
+   const x=Math.cos(a)*r,z=-5+Math.sin(a)*r;
+   if(Math.hypot(x-NOVA_SPOT.x,z-NOVA_SPOT.z)<9)continue;
+   addRock(x,z,rr(.6,1.7),rr(.7,1.3));
+ }
+ // Rock nook that hides NOVA
+ addRock(NOVA_SPOT.x-6,NOVA_SPOT.z-2,3.4,1.5);
+ addRock(NOVA_SPOT.x+5,NOVA_SPOT.z-5,2.8,1.3);
+ addRock(NOVA_SPOT.x-1,NOVA_SPOT.z-8,4.4,1.6);
 }
 
 function createPlayer(){
@@ -149,7 +279,7 @@ function createPlayer(){
    const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.12,.65,6,10),suit);
    arm.rotation.z=s*.13; arm.position.set(s*.56,1.48,0); player.add(arm);
  }
- player.position.set(0,0,6);
+ player.position.set(0,terrainHeight(0,6),6);
  scene.add(player);
 }
 
@@ -171,22 +301,50 @@ function createShip(){
  }
  const glow=new THREE.Mesh(new THREE.SphereGeometry(.35,12,8),new THREE.MeshBasicMaterial({color:0x9c65ff}));
  glow.position.set(1.8,2.7,.9); ship.add(glow);
- ship.position.set(0,0,-5);
+ // Sit on the real ground (ground is ~2.5 high here, not 0)
+ ship.position.set(SHIP_SPOT.x,terrainHeight(SHIP_SPOT.x,SHIP_SPOT.z)+.3,SHIP_SPOT.z);
  ship.rotation.y=-.25;
+ ship.rotation.z=.04;
  scene.add(ship);
 }
 
 function createNova(){
- nova=new THREE.Group();
- const body=new THREE.Mesh(new THREE.SphereGeometry(.65,20,14),makeMat(0x52545d,.45,.7));
- nova.add(body);
- const eye=new THREE.Mesh(new THREE.SphereGeometry(.2,16,10),new THREE.MeshBasicMaterial({color:0x9d72ff}));
- eye.position.set(0,.15,.58); nova.add(eye);
- const ring=new THREE.Mesh(new THREE.TorusGeometry(.46,.035,8,24),makeMat(0xa9a4b5,.4,.7));
- ring.rotation.x=Math.PI/2; nova.add(ring);
- const antenna=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.45,8),makeMat(0xb5b5bc,.4,.7));
- antenna.position.y=.7; nova.add(antenna);
- nova.position.set(2.4,.72,-3.4);
+ nova=new THREE.Group();            // root: position, heading, tilt
+ novaBall=new THREE.Group();        // the part that rolls
+ nova.add(novaBall);
+
+ novaBall.add(new THREE.Mesh(new THREE.SphereGeometry(.65,20,14),makeMat(0x52545d,.45,.7)));
+ // panel seams so you can see the ball roll
+ const seamMat=makeMat(0x24252b,.5,.6);
+ const s1=new THREE.Mesh(new THREE.TorusGeometry(.655,.022,6,28),seamMat);
+ const s2=new THREE.Mesh(new THREE.TorusGeometry(.655,.022,6,28),seamMat);
+ s2.rotation.y=Math.PI/2;
+ const s3=new THREE.Mesh(new THREE.TorusGeometry(.655,.022,6,28),seamMat);
+ s3.rotation.x=Math.PI/2;
+ novaBall.add(s1,s2,s3);
+
+ // Eye stays facing forward (does not roll)
+ novaEyeMat=new THREE.MeshBasicMaterial({color:0x3a2658});
+ const housing=new THREE.Mesh(new THREE.CylinderGeometry(.27,.27,.12,16),makeMat(0x15151a,.4,.6));
+ housing.rotation.x=Math.PI/2; housing.position.set(0,.15,.57);
+ nova.add(housing);
+ const eye=new THREE.Mesh(new THREE.SphereGeometry(.2,16,10),novaEyeMat);
+ eye.position.set(0,.15,.62); nova.add(eye);
+
+ // Small rotating sensor/head module on top
+ novaSensor=new THREE.Group();
+ novaSensor.position.y=.66;
+ const stem=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,.25,8),makeMat(0xb5b5bc,.4,.7));
+ stem.position.y=.12; novaSensor.add(stem);
+ const head=new THREE.Mesh(new THREE.BoxGeometry(.3,.12,.18),makeMat(0xa9a4b5,.4,.7));
+ head.position.y=.3; novaSensor.add(head);
+ const tip=new THREE.Mesh(new THREE.SphereGeometry(.05,8,6),new THREE.MeshBasicMaterial({color:0x9d72ff}));
+ tip.position.set(.17,.3,0); novaSensor.add(tip);
+ nova.add(novaSensor);
+
+ nova.position.set(NOVA_SPOT.x,terrainHeight(NOVA_SPOT.x,NOVA_SPOT.z)+.52,NOVA_SPOT.z);
+ nova.rotation.y=.7;
+ nova.rotation.z=.28; // damaged lean
  scene.add(nova);
 }
 
@@ -200,6 +358,412 @@ function createStars(){
  scene.add(new THREE.Points(geo,new THREE.PointsMaterial({color:0xffffff,size:.65,sizeAttenuation:true})));
 }
 
+/* ---------- beacon + link beam ---------- */
+function createBeacon(){
+ beamG=new THREE.Group();
+ beamMat=glowMat(0xa070ff,.3);
+ const col=new THREE.Mesh(new THREE.CylinderGeometry(.28,.28,34,16,1,true),beamMat);
+ col.position.y=17; col.name="col";
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(1.3,.07,8,32),beamMat);
+ ring.rotation.x=Math.PI/2; ring.position.y=.2; ring.name="ring";
+ beamG.add(col,ring);
+ beamG.visible=false;
+ scene.add(beamG);
+
+ linkBeam=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,1,8,1,true),glowMat(0x6fe0ff,.8));
+ linkBeam.visible=false;
+ scene.add(linkBeam);
+}
+function setLink(a,b,t){
+ const dir=new THREE.Vector3().subVectors(b,a);
+ const len=dir.length();
+ linkBeam.position.copy(a).addScaledVector(dir,.5);
+ const w=1+Math.sin(t*30)*.5;
+ linkBeam.scale.set(w,len,w);
+ linkBeam.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize());
+ linkBeam.visible=true;
+}
+
+/* ---------- resource pickups ---------- */
+const pickups=[];
+function makePickup(type,x,z){
+ const cfg=RES[type];
+ const g=new THREE.Group();
+ if(type==="metal"){
+   const m=makeMat(0x9aa3b8,.35,.85); m.emissive=new THREE.Color(0x20263a);
+   const a=new THREE.Mesh(new THREE.BoxGeometry(.6,.35,.4),m); a.rotation.y=.5;
+   const b=new THREE.Mesh(new THREE.BoxGeometry(.35,.25,.3),m); b.position.set(.25,.22,.1); b.rotation.set(.3,.2,.4);
+   g.add(a,b);
+ }else if(type==="energy"){
+   const o=new THREE.Mesh(new THREE.OctahedronGeometry(.4,0),new THREE.MeshBasicMaterial({color:cfg.color}));
+   o.scale.y=1.45; g.add(o);
+ }else{
+   const m=makeMat(0x35e0ff,.3,.5); m.emissive=new THREE.Color(0x0a7a9a);
+   g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(.3,0),m));
+   const ring=new THREE.Mesh(new THREE.TorusGeometry(.5,.035,6,20),new THREE.MeshBasicMaterial({color:cfg.color}));
+   ring.rotation.x=1.1; g.add(ring);
+ }
+ g.add(new THREE.Mesh(new THREE.SphereGeometry(.9,12,8),glowMat(cfg.color,.16)));
+ const col=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,3.2,6,1,true),glowMat(cfg.color,.4));
+ col.position.y=1.6; g.add(col);
+
+ const y0=terrainHeight(x,z)+1.0;
+ g.position.set(x,y0,z);
+ g.userData={type,y0,ph:rand()*6};
+ scene.add(g);
+ pickups.push(g);
+}
+function spawnPickups(){
+ const list=[];
+ for(let i=0;i<6;i++)list.push("metal");
+ for(let i=0;i<4;i++)list.push("energy");
+ for(let i=0;i<4;i++)list.push("parts");
+ for(let i=list.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[list[i],list[j]]=[list[j],list[i]]}
+ const n=list.length;
+ for(let i=0;i<n;i++){
+   let x=0,z=0;
+   for(let k=0;k<12;k++){
+     const a=i/n*Math.PI*2+rr(-.22,.22)+.3;
+     const r=rr(9,30);
+     x=SHIP_SPOT.x+Math.cos(a)*r; z=SHIP_SPOT.z+Math.sin(a)*r;
+     const okShip=Math.hypot(x-SHIP_SPOT.x,z-SHIP_SPOT.z)>8;
+     const okNova=Math.hypot(x-NOVA_SPOT.x,z-NOVA_SPOT.z)>9;
+     if(okShip&&okNova)break;
+   }
+   makePickup(list[i],x,z);
+ }
+}
+
+/* ---------- workbench + NEUTRON ---------- */
+function makeWorkbench(){
+ const g=new THREE.Group();
+ const dark=makeMat(0x2a2832,.55,.7);
+ const light=makeMat(0x8a8793,.45,.75);
+ const base=new THREE.Mesh(new THREE.BoxGeometry(2.4,.8,1.1),dark); base.position.y=.4; g.add(base);
+ const top=new THREE.Mesh(new THREE.BoxGeometry(2.6,.12,1.3),light); top.position.y=.86; g.add(top);
+ const strip=new THREE.Mesh(new THREE.BoxGeometry(2.2,.06,.04),new THREE.MeshBasicMaterial({color:0x9c65ff}));
+ strip.position.set(0,.55,.56); g.add(strip);
+ const holo=new THREE.Mesh(new THREE.BoxGeometry(.9,.55,.04),glowMat(0x7a4dff,.5));
+ holo.position.set(-.7,1.4,-.4); holo.rotation.x=-.25; g.add(holo);
+ const arm=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,.8,8),light); arm.position.set(.9,1.3,-.35); g.add(arm);
+ const armTop=new THREE.Mesh(new THREE.BoxGeometry(.5,.07,.07),light); armTop.position.set(.68,1.68,-.35); g.add(armTop);
+ const crate=new THREE.Mesh(new THREE.BoxGeometry(.4,.25,.35),makeMat(0x4a3a3f,.8,.3)); crate.position.set(.5,1.05,.2); crate.rotation.y=.4; g.add(crate);
+ return g;
+}
+function makeNeutronDevice(){
+ const g=new THREE.Group();
+ const body=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.55,12),makeMat(0x2a2832,.3,.8));
+ g.add(body);
+ const core=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.58,12),new THREE.MeshBasicMaterial({color:0x9c65ff}));
+ core.scale.set(1.02,.6,1.02); g.add(core);
+ for(const y of [-.2,.2]){
+   const r=new THREE.Mesh(new THREE.TorusGeometry(.2,.025,6,18),new THREE.MeshBasicMaterial({color:0x6fe0ff}));
+   r.rotation.x=Math.PI/2; r.position.y=y; g.add(r);
+ }
+ g.visible=false;
+ scene.add(g);
+ return g;
+}
+
+/* ---------- tweens ---------- */
+const tweens=[];
+function tween(dur,fn,done){tweens.push({t:0,dur,fn,done})}
+function updateTweens(dt){
+ for(let i=tweens.length-1;i>=0;i--){
+   const tw=tweens[i];
+   tw.t+=dt;
+   const k=Math.min(1,tw.t/tw.dur);
+   tw.fn(k);
+   if(k>=1){tweens.splice(i,1);if(tw.done)tw.done()}
+ }
+}
+
+/* ---------- HUD helpers ---------- */
+function toast(text,time=2200){
+ toastEl.textContent=text;
+ toastEl.style.display="block";
+ clearTimeout(toast.t);
+ toast.t=setTimeout(()=>toastEl.style.display="none",time);
+}
+let subLast="";
+function setSub(t){if(t!==subLast){subLast=t;objectiveSub.textContent=t}}
+function showProgress(label){progLabel.textContent=label;progFill.style.width="0%";progressEl.style.display="block"}
+function hideProgress(){progressEl.style.display="none"}
+
+const invChips={};
+function buildInv(){
+ for(const k of Object.keys(RES)){
+   const c=document.createElement("span");
+   c.className="chip"; c.style.setProperty("--c",RES[k].css);
+   c.innerHTML="<i></i>"+RES[k].label+"<b>0</b>";
+   invEl.appendChild(c); invChips[k]=c;
+ }
+ const n=document.createElement("span");
+ n.className="chip"; n.style.setProperty("--c","#9c65ff"); n.style.display="none";
+ n.innerHTML="<i></i>NEUTRON<b>READY</b>";
+ invEl.appendChild(n); invChips.neutron=n;
+}
+function refreshInv(bumpKey){
+ for(const k of Object.keys(RES)){invChips[k].querySelector("b").textContent=inv[k]}
+ invChips.neutron.style.display=neutronBuilt?"inline-block":"none";
+ if(bumpKey&&invChips[bumpKey]){
+   const c=invChips[bumpKey]; c.classList.remove("bump"); void c.offsetWidth; c.classList.add("bump");
+ }
+}
+function setState(s){
+ state=s;
+ objectiveText.textContent=OBJ[s];
+ invEl.style.display=ORDER.indexOf(s)>=ORDER.indexOf("GATHER")?"flex":"none";
+ objectiveBox.classList.remove("pulse"); void objectiveBox.offsetWidth; objectiveBox.classList.add("pulse");
+}
+
+/* ---------- dialogue ---------- */
+let speaking=false,dlgTimer=null,dlgSkip=null,lastLineAt=0;
+const SPK_COLOR={HEMTON:"#b99cff",NOVA:"#7fe3ff"};
+function speak(speaker,lines,done){
+ clearTimeout(dlgTimer);
+ let i=0;const shown=[];
+ speaking=true;
+ const finish=()=>{
+   clearTimeout(dlgTimer);
+   message.style.display="none";
+   speaking=false; dlgSkip=null;
+   if(done)done();
+ };
+ const next=()=>{
+   clearTimeout(dlgTimer);
+   if(i>=lines.length){finish();return}
+   shown.push(lines[i]); i++;
+   message.innerHTML='<span class="spk" style="color:'+(SPK_COLOR[speaker]||"#fff")+'">'+speaker+'</span>'+shown.join("<br>");
+   message.style.display="block";
+   lastLineAt=performance.now();
+   dlgTimer=setTimeout(next,i>=lines.length?2400:1000+lines[i-1].length*35);
+ };
+ dlgSkip=()=>{if(performance.now()-lastLineAt>700)next()};
+ next();
+}
+
+/* ---------- inventory math ---------- */
+const hasCost=c=>Object.keys(c).every(k=>inv[k]>=c[k]);
+function spend(c){for(const k of Object.keys(c))inv[k]-=c[k];refreshInv()}
+const haveAllNeeded=()=>Object.keys(NEED).every(k=>inv[k]>=NEED[k]);
+
+function collect(g){
+ const t=g.userData.type;
+ inv[t]++;
+ scene.remove(g);
+ pickups.splice(pickups.indexOf(g),1);
+ toast("+1 "+RES[t].label,1100);
+ refreshInv(t);
+ if(state==="GATHER"&&haveAllNeeded()){
+   setState("WORKBENCH");
+   speak("HEMTON",["Materials sufficient.","Construct a workbench on open ground, away from the wreck."]);
+ }
+}
+
+/* ---------- actions ---------- */
+function currentAction(){
+ if(busy||speaking||!started)return null;
+ const p=player.position;
+ switch(state){
+   case "HEMTON": if(dist2D(p,ship.position)<11)return "TALK TO HEMTON";break;
+   case "NOVA": if(dist2D(p,nova.position)<5)return "TALK TO NOVA";break;
+   case "WORKBENCH": return "BUILD WORKBENCH";
+   case "NEUTRON": if(workbench&&dist2D(p,workbench.position)<4.5)return "BUILD NEUTRON";break;
+   case "REPAIR": if(dist2D(p,nova.position)<5)return "USE NEUTRON ON NOVA";break;
+   case "FOLLOW": if(dist2D(p,nova.position)<4)return "TALK TO NOVA";break;
+ }
+ return null;
+}
+
+function interact(){
+ if(!started)return;
+ if(speaking){if(dlgSkip)dlgSkip();return}
+ if(busy)return;
+ const act=currentAction();
+ if(!act){fallbackTalk();return}
+
+ if(state==="HEMTON"){
+   setState("NOVA");
+   speak("HEMTON",[
+     "Critical systems failure detected.",
+     "Life support 31%.",
+     "Navigation offline.",
+     "Communication unavailable...",
+     "...and you're finally awake."
+   ],()=>speak("HEMTON",["Short-range scan detected a damaged unit nearby.","Designation: NOVA. Follow the signal."]));
+ }else if(state==="NOVA"){
+   facePlayer();
+   setState("GATHER");
+   speak("NOVA",["My locomotion system is damaged...","I can't roll like this."],
+     ()=>speak("HEMTON",["Repair requires a NEUTRON transfer device.","Salvage Metal, Energy and Components from the crash site."]));
+ }else if(state==="WORKBENCH"){
+   buildWorkbench();
+ }else if(state==="NEUTRON"){
+   buildNeutron();
+ }else if(state==="REPAIR"){
+   startRepair();
+ }else if(state==="FOLLOW"){
+   facePlayer();
+   speak("NOVA",NOVA_HINT.FOLLOW);
+ }
+}
+
+function fallbackTalk(){
+ const p=player.position;
+ if(dist2D(p,nova.position)<5&&NOVA_HINT[state]){facePlayer();speak("NOVA",NOVA_HINT[state]);return}
+ if(dist2D(p,nova.position)<5){facePlayer();speak("NOVA",["...locomotion... damaged..."]);return}
+ if(dist2D(p,ship.position)<11&&HEMTON_HINT[state]){speak("HEMTON",HEMTON_HINT[state]);return}
+ toast("Nothing useful here.",1400);
+}
+function facePlayer(){
+ if(novaMode==="damaged"||novaMode==="repairing")
+   nova.rotation.y=Math.atan2(player.position.x-nova.position.x,player.position.z-nova.position.z);
+}
+
+function buildWorkbench(){
+ if(dist2D(player.position,ship.position)<10){toast("Too close to the wreckage. Step back and try again.",2200);return}
+ if(!hasCost(WB_COST)){toast("Not enough materials.");return}
+ spend(WB_COST);
+ workbench=makeWorkbench();
+ const x=player.position.x-Math.sin(yaw)*3,z=player.position.z-Math.cos(yaw)*3;
+ workbench.position.set(x,terrainHeight(x,z),z);
+ workbench.rotation.y=yaw;
+ workbench.scale.setScalar(.01);
+ scene.add(workbench);
+ neutronDevice=makeNeutronDevice();
+ busy=true;
+ tween(.9,k=>{const e=1-Math.pow(1-k,3);workbench.scale.setScalar(.01+.99*e)},()=>{busy=false});
+ setState("NEUTRON");
+ toast("WORKBENCH BUILT");
+ speak("HEMTON",["Workbench online.","NEUTRON schematics loaded."]);
+}
+
+function buildNeutron(){
+ if(!hasCost(NEUT_COST)){toast("Not enough materials.");return}
+ busy=true;
+ showProgress("ASSEMBLING NEUTRON");
+ const base=workbench.position;
+ neutronDevice.visible=true;
+ tween(2.4,k=>{
+   progFill.style.width=(k*100)+"%";
+   neutronDevice.position.set(base.x,base.y+1.3+k*.5,base.z);
+   neutronDevice.scale.setScalar(.2+.8*k);
+   neutronDevice.rotation.y+=.12;
+ },()=>{
+   spend(NEUT_COST);
+   neutronBuilt=true; refreshInv("neutron");
+   hideProgress();
+   setState("REPAIR");
+   toast("NEUTRON ACQUIRED");
+   // device flies to the player and goes into inventory
+   const from=neutronDevice.position.clone();
+   tween(.8,k=>{
+     const to=new THREE.Vector3(player.position.x,player.position.y+1.5,player.position.z);
+     neutronDevice.position.lerpVectors(from,to,k);
+     neutronDevice.scale.setScalar(1-.8*k);
+   },()=>{neutronDevice.visible=false;busy=false});
+   speak("HEMTON",["NEUTRON assembled.","Transfer repair data to NOVA."]);
+ });
+}
+
+function startRepair(){
+ busy=true; novaMode="repairing";
+ facePlayer();
+ showProgress("TRANSFERRING REPAIR DATA");
+ const gy=terrainHeight(nova.position.x,nova.position.z);
+ tween(3.4,k=>{
+   progFill.style.width=(k*100)+"%";
+   const t=performance.now()*.001;
+   const a=new THREE.Vector3(player.position.x,player.position.y+1.5,player.position.z);
+   const b=new THREE.Vector3(nova.position.x,nova.position.y,nova.position.z);
+   setLink(a,b,t);
+   player.rotation.y=Math.atan2(nova.position.x-player.position.x,nova.position.z-player.position.z);
+   nova.position.y=gy+.52+(.13*k)+Math.sin(k*Math.PI)*.9;
+   nova.rotation.z=.28*(1-k)+Math.sin(k*40)*.05*(1-k);
+   novaBall.rotation.x+=.25;
+   const flick=Math.sin(t*40)>(1-k*1.6);
+   novaEyeMat.color.setHex(flick?0x9d72ff:0x3a2658);
+ },()=>{
+   linkBeam.visible=false;
+   hideProgress();
+   novaMode="online";
+   novaEyeMat.color.setHex(0x9d72ff);
+   setState("FOLLOW");
+   busy=false;
+   speak("NOVA",["Locomotion restored.","Thank you. I will follow you."],
+     ()=>toast("NOVA IS NOW YOUR COMPANION",3000));
+ });
+}
+
+/* ---------- waypoint ---------- */
+function getWaypoint(){
+ switch(state){
+   case "HEMTON": return {pos:ship.position,name:"HEMTON",txt:"GO TO THE CRASHED SHIP",css:"#b99cff",col:0xa070ff,lift:7};
+   case "NOVA": return {pos:nova.position,name:"NOVA SIGNAL",txt:"FOLLOW THE SIGNAL TO NOVA",css:"#7fe3ff",col:0x6fe0ff,lift:3.5};
+   case "GATHER":{
+     let best=null,bd=1e9;
+     for(const g of pickups){
+       if(inv[g.userData.type]>=NEED[g.userData.type])continue;
+       const d=dist2D(player.position,g.position);
+       if(d<bd){bd=d;best=g}
+     }
+     const txt="METAL "+Math.min(inv.metal,NEED.metal)+"/"+NEED.metal+" • ENERGY "+Math.min(inv.energy,NEED.energy)+"/"+NEED.energy+" • COMPONENTS "+Math.min(inv.parts,NEED.parts)+"/"+NEED.parts;
+     if(!best)return {pos:null,txt,noDist:true};
+     const t=best.userData.type;
+     return {pos:best.position,name:RES[t].label,txt,noDist:true,css:RES[t].css,col:RES[t].color,lift:1.5};
+   }
+   case "WORKBENCH": return {pos:null,txt:"FIND OPEN GROUND • PRESS USE TO BUILD",noDist:true};
+   case "NEUTRON": return workbench?{pos:workbench.position,name:"WORKBENCH",txt:"GO TO THE WORKBENCH",css:"#b99cff",col:0xa070ff,lift:3}:null;
+   case "REPAIR": return {pos:nova.position,name:"NOVA",txt:"BRING THE NEUTRON TO NOVA",css:"#7fe3ff",col:0x6fe0ff,lift:3};
+   case "FOLLOW": return {pos:null,txt:"NOVA IS NOW YOUR COMPANION • EXPLORE AURELIS",noDist:true};
+ }
+ return null;
+}
+
+function updateWaypoint(){
+ const w=getWaypoint();
+ if(!w){wpEl.style.display="none";beamG.visible=false;return}
+ if(!w.pos){wpEl.style.display="none";beamG.visible=false;setSub(w.txt);return}
+
+ const d=Math.hypot(w.pos.x-player.position.x,w.pos.z-player.position.z);
+ setSub(w.noDist?w.txt:w.txt+" • "+Math.round(d)+"m");
+
+ // 3D beacon
+ const gy=terrainHeight(w.pos.x,w.pos.z);
+ beamG.position.set(w.pos.x,gy,w.pos.z);
+ beamMat.color.setHex(w.col);
+ beamG.visible=d>3;
+
+ // screen marker
+ const world=new THREE.Vector3(w.pos.x,gy+w.lift,w.pos.z);
+ const cam=world.clone().applyMatrix4(camera.matrixWorldInverse);
+ const behind=cam.z>0;
+ const v=world.clone().project(camera);
+ const W=innerWidth,H=innerHeight;
+ let sx=(v.x*.5+.5)*W,sy=(-v.y*.5+.5)*H;
+ if(behind){sx=W-sx;sy=H-sy}
+ const m=46;
+ const off=behind||sx<m||sx>W-m||sy<m||sy>H-m;
+ let ang=0;
+ if(off){
+   const cx=W/2,cy=H/2;
+   let dx=sx-cx,dy=sy-cy;
+   if(Math.abs(dx)<1e-3&&Math.abs(dy)<1e-3)dy=1;
+   ang=Math.atan2(dy,dx);
+   const k=Math.min((cx-m)/Math.max(Math.abs(dx),1e-3),(cy-m)/Math.max(Math.abs(dy),1e-3));
+   sx=cx+dx*k; sy=cy+dy*k;
+ }
+ wpEl.style.display="block";
+ wpEl.style.setProperty("--c",w.css);
+ wpEl.style.transform="translate("+sx+"px,"+sy+"px)";
+ wpDia.style.display=off?"none":"block";
+ wpArr.style.display=off?"block":"none";
+ wpArr.style.transform="rotate("+ang+"rad)";
+ wpLbl.textContent=w.name+" • "+Math.round(d)+"m";
+}
+
+/* ---------- setup ---------- */
 function setup(){
  scene=new THREE.Scene();
  scene.background=new THREE.Color(0x100811);
@@ -209,7 +773,6 @@ function setup(){
  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
  renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
  renderer.setSize(innerWidth,innerHeight);
- renderer.shadowMap.enabled=true;
  game.appendChild(renderer.domElement);
 
  clock=new THREE.Clock();
@@ -223,9 +786,19 @@ function setup(){
  createShip();
  createPlayer();
  createNova();
+ createBeacon();
+ spawnPickups();
+ buildInv();
+ refreshInv();
 
  window.addEventListener("resize",resize);
- window.addEventListener("keydown",e=>keys[e.code]=true);
+ window.addEventListener("keydown",e=>{
+   keys[e.code]=true;
+   if(e.repeat)return;
+   if(e.code==="KeyE")interact();
+   if(e.code==="Space"){e.preventDefault();jump()}
+   if(e.code==="KeyC")toggleCam();
+ });
  window.addEventListener("keyup",e=>keys[e.code]=false);
 
  setupJoystick();
@@ -240,20 +813,12 @@ function resize(){
  renderer.setSize(innerWidth,innerHeight);
 }
 
-function showMessage(text,time=3500){
- message.textContent=text;
- message.style.display="block";
- clearTimeout(showMessage.t);
- showMessage.t=setTimeout(()=>message.style.display="none",time);
-}
-
+/* ---------- input ---------- */
 function setupJoystick(){
  function start(e){
    if(!started || e.pointerType==="mouse")return;
    e.preventDefault();
    joystickActive=true; joyId=e.pointerId;
-   const r=joystickZone.getBoundingClientRect();
-   const x=e.clientX-r.left,y=e.clientY-r.top;
    joystick.style.left=(e.clientX-66)+"px";
    joystick.style.top=(e.clientY-66)+"px";
    joystick.style.display="block";
@@ -281,10 +846,9 @@ function setupJoystick(){
    const max=48;
    const len=Math.hypot(dx,dy);
    if(len>max){dx=dx/len*max;dy=dy/len*max}
-   joyX=dx/max;
-   // CORRECTED: screen Y down means game forward is negative Z.
-   joyY=-dy/max;
-   stick.style.transform=`translate(${dx}px,${dy}px)`;
+   joyX=dx/max;          // right = +X
+   joyY=-dy/max;         // up on screen = forward
+   stick.style.transform="translate("+dx+"px,"+dy+"px)";
  }
 }
 
@@ -307,46 +871,29 @@ function setupLook(){
  lookArea.addEventListener("pointercancel",e=>{if(e.pointerId===lookId)lookId=null});
 }
 
+function toggleCam(){
+ thirdPerson=!thirdPerson;
+ toast(thirdPerson?"THIRD-PERSON CAMERA":"FIRST-PERSON CAMERA",1200);
+}
+function jump(){
+ if(!started)return;
+ if(grounded){velocityY=7.6;grounded=false}
+}
+
 function setupButtons(){
  document.getElementById("play").addEventListener("click",async()=>{
    started=true;
    document.getElementById("start").style.display="none";
    try{if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen()}catch(e){}
    try{if(screen.orientation?.lock)await screen.orientation.lock("landscape")}catch(e){}
-   showMessage("AURELIS — SYSTEM ONLINE",2200);
+   toast("AURELIS — SYSTEM ONLINE",2200);
  });
-
- document.getElementById("camBtn").addEventListener("pointerdown",e=>{
-   e.preventDefault(); thirdPerson=!thirdPerson;
-   showMessage(thirdPerson?"THIRD-PERSON CAMERA":"FIRST-PERSON CAMERA",1200);
- });
-
- document.getElementById("useBtn").addEventListener("pointerdown",e=>{
-   e.preventDefault(); interact();
- });
-
- document.getElementById("jumpBtn").addEventListener("pointerdown",e=>{
-   e.preventDefault();
-   if(player.position.y<.05) velocityY=.16;
- });
+ document.getElementById("camBtn").addEventListener("pointerdown",e=>{e.preventDefault();toggleCam()});
+ document.getElementById("useBtn").addEventListener("pointerdown",e=>{e.preventDefault();interact()});
+ document.getElementById("jumpBtn").addEventListener("pointerdown",e=>{e.preventDefault();jump()});
 }
 
-let velocityY=0;
-
-function interact(){
- if(!started)return;
- const d=player.position.distanceTo(ship.position);
- if(d<9 && !interacted){
-   interacted=true;
-   objectiveText.textContent="SYSTEM MESSAGE";
-   showMessage("HEMTON: Critical systems failure detected. Life support 31%. Navigation offline. Communication unavailable... and you're finally awake.",7000);
- }else if(player.position.distanceTo(nova.position)<4){
-   showMessage("NOVA: My locomotion system is damaged... I can't roll like this.",4000);
- }else{
-   showMessage("Nothing useful here.",1400);
- }
-}
-
+/* ---------- per-frame updates ---------- */
 function updatePlayer(dt){
  let ix=joyX, iz=joyY;
  if(keys.KeyA)ix-=1;
@@ -357,61 +904,51 @@ function updatePlayer(dt){
  const len=Math.hypot(ix,iz);
  if(len>1){ix/=len;iz/=len}
 
- // Movement is relative to the camera yaw.
+ // Camera forward = (-sin yaw, -cos yaw), camera right = (cos yaw, -sin yaw).
+ // Same convention for first and third person, so left is left and forward is forward.
  const sin=Math.sin(yaw),cos=Math.cos(yaw);
- const worldX=ix*cos + iz*sin;
- const worldZ=-ix*sin + iz*cos;
+ const worldX=ix*cos - iz*sin;
+ const worldZ=-ix*sin - iz*cos;
 
  const targetX=worldX*4.5,targetZ=worldZ*4.5;
  const smooth=1-Math.pow(.001,dt);
  velocityX+=(targetX-velocityX)*smooth;
  velocityZ+=(targetZ-velocityZ)*smooth;
 
- player.position.x+=velocityX*dt;
- player.position.z+=velocityZ*dt;
+ const p=player.position;
+ p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,-235,235);
+ p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,-235,235);
 
- // Gravity / jump.
- velocityY-=.42;
- player.position.y+=velocityY;
-
- // Keep the character standing ON the actual AURELIS terrain.
- // A downward ray finds the deformed ground instead of assuming y = 0.
- const rayOriginY=Math.max(player.position.y+30,30);
- const ray=new THREE.Raycaster(
-   new THREE.Vector3(player.position.x,rayOriginY,player.position.z),
-   new THREE.Vector3(0,-1,0),
-   0,80
- );
- const hit=ray.intersectObject(terrain,false)[0];
-
- if(hit){
-   const groundY=hit.point.y;
-   const feetClearance=0.03;
-   if(player.position.y<=groundY+feetClearance && velocityY<=0){
-     player.position.y=groundY+feetClearance;
-     velocityY=0;
-   }
- }else if(player.position.y<0){
-   player.position.y=0;
-   velocityY=0;
+ // Gravity and jump (time-based so it works at any frame rate)
+ velocityY-=22*dt;
+ p.y+=velocityY*dt;
+ const gy=terrainHeight(p.x,p.z);
+ if(p.y<=gy+.05 && velocityY<=0){
+   p.y=gy; velocityY=0; grounded=true;
+ }else{
+   grounded=false;
  }
 
- if(Math.hypot(velocityX,velocityZ)>.15){
+ if(!busy && Math.hypot(velocityX,velocityZ)>.15){
    player.rotation.y=Math.atan2(velocityX,velocityZ);
  }
 }
 
 function updateCamera(){
- const target=new THREE.Vector3(player.position.x,player.position.y+1.55,player.position.z);
+ const p=player.position;
+ const target=new THREE.Vector3(p.x,p.y+1.55,p.z);
+ player.visible=thirdPerson;
 
  if(thirdPerson){
    const dist=5.5;
    const h=Math.cos(pitch)*dist;
    camera.position.set(
-     target.x-Math.sin(yaw)*h,
-     target.y+Math.sin(pitch)*dist+1,
-     target.z-Math.cos(yaw)*h
+     target.x+Math.sin(yaw)*h,
+     target.y+2.2-Math.sin(pitch)*dist,
+     target.z+Math.cos(yaw)*h
    );
+   const minY=terrainHeight(camera.position.x,camera.position.z)+.5;
+   if(camera.position.y<minY)camera.position.y=minY;
    camera.lookAt(target);
  }else{
    camera.position.copy(target);
@@ -419,16 +956,79 @@ function updateCamera(){
    camera.rotation.y=yaw;
    camera.rotation.x=pitch;
  }
+ camera.updateMatrixWorld();
+}
+
+function updatePickups(dt,t){
+ for(let i=pickups.length-1;i>=0;i--){
+   const g=pickups[i];
+   g.rotation.y+=dt*1.6;
+   g.position.y=g.userData.y0+Math.sin(t*2.2+g.userData.ph)*.14;
+   if(dist2D(player.position,g.position)<2.1)collect(g);
+ }
+}
+
+function updateNova(dt,t){
+ novaSensor.rotation.y+=dt*(novaMode==="online"?3:(novaMode==="repairing"?6:.7));
+ if(novaMode==="damaged"){
+   const gy=terrainHeight(nova.position.x,nova.position.z);
+   nova.position.y=gy+.52;
+   nova.rotation.z=.28+Math.sin(t*6)*.008;
+   novaEyeMat.color.setHex((Math.sin(t*23)*Math.sin(t*7)>.55)?0x9d72ff:0x3a2658);
+   return;
+ }
+ if(novaMode!=="online")return;
+
+ const nx=nova.position.x,nz=nova.position.z;
+ const dx=player.position.x-nx,dz=player.position.z-nz;
+ const d=Math.hypot(dx,dz);
+ let step=0;
+ if(d>60){ // too far behind, catch up
+   nova.position.x=player.position.x+Math.sin(yaw)*3;
+   nova.position.z=player.position.z+Math.cos(yaw)*3;
+ }else if(d>3.4){
+   const speed=Math.min(5.4,(d-3.4)*2.2+1.3);
+   step=speed*dt;
+   nova.position.x+=dx/d*step;
+   nova.position.z+=dz/d*step;
+ }
+ nova.rotation.y=lerpAngle(nova.rotation.y,Math.atan2(dx,dz),1-Math.pow(.0008,dt));
+ nova.rotation.z*=Math.pow(.001,dt); // settle upright
+ novaBall.rotation.x+=step/.65;
+ const bob=step>0?0:Math.sin(t*3)*.035;
+ nova.position.y=terrainHeight(nova.position.x,nova.position.z)+.65+bob;
+ novaEyeMat.color.setHex(0x9d72ff);
+}
+
+function updatePrompt(){
+ const a=currentAction();
+ if(a){
+   const txt="USE • "+a;
+   if(promptEl.textContent!==txt)promptEl.textContent=txt;
+   promptEl.style.display="block";
+ }else{
+   promptEl.style.display="none";
+ }
 }
 
 function animate(){
  requestAnimationFrame(animate);
  const dt=Math.min(clock.getDelta(),.05);
+ const t=performance.now()*.001;
  if(started){
    updatePlayer(dt);
+   updateTweens(dt);
+   updatePickups(dt,t);
+   updateNova(dt,t);
    updateCamera();
-   nova.rotation.y+=dt*1.5;
-   nova.position.y=.72+Math.sin(performance.now()*.003)*.06;
+   // beacon pulse
+   if(beamG.visible){
+     beamMat.opacity=.22+Math.sin(t*3)*.08;
+     const ring=beamG.getObjectByName("ring");
+     ring.scale.setScalar(1+((t*.8)%1)*.5);
+   }
+   updateWaypoint();
+   updatePrompt();
  }
  renderer.render(scene,camera);
 }
