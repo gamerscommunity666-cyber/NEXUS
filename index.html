@@ -285,27 +285,26 @@ function createPlayer(){
 
 function createShip(){
  ship=new THREE.Group();
- const hull=makeMat(0x77757a,.6,.75);
- const dark=makeMat(0x1d1d22,.5,.65);
- const broken=makeMat(0x33252a,.9,.1);
-
- const main=new THREE.Mesh(new THREE.CylinderGeometry(2.8,3.5,7,16),hull);
- main.rotation.z=Math.PI/2; main.rotation.y=.15; main.position.y=2.6; ship.add(main);
- const nose=new THREE.Mesh(new THREE.ConeGeometry(2.8,4,16),dark);
- nose.rotation.z=-Math.PI/2; nose.position.set(4.5,2.6,0); ship.add(nose);
-
- for(let i=0;i<3;i++){
-   const wing=new THREE.Mesh(new THREE.BoxGeometry(3.2,.35,1.7),broken);
-   wing.position.set(-.7,.9,(i-1)*2.1);
-   wing.rotation.z=(i-1)*.1; ship.add(wing);
- }
- const glow=new THREE.Mesh(new THREE.SphereGeometry(.35,12,8),new THREE.MeshBasicMaterial({color:0x9c65ff}));
- glow.position.set(1.8,2.7,.9); ship.add(glow);
- // Sit on the real ground (ground is ~2.5 high here, not 0)
- ship.position.set(SHIP_SPOT.x,terrainHeight(SHIP_SPOT.x,SHIP_SPOT.z)+.3,SHIP_SPOT.z);
- ship.rotation.y=-.25;
- ship.rotation.z=.04;
- scene.add(ship);
+ const hull=makeMat(0x5d6068,.42,.82), hullDark=makeMat(0x20242b,.34,.9), panel=makeMat(0x343840,.58,.72), damaged=makeMat(0x241d22,.88,.18), glass=makeMat(0x161b28,.16,.8);
+ const purple=new THREE.MeshBasicMaterial({color:0x9c65ff}), red=new THREE.MeshBasicMaterial({color:0xff3b32}), orange=new THREE.MeshBasicMaterial({color:0xff8a32});
+ const body=new THREE.Mesh(new THREE.BoxGeometry(7.8,1.9,3.2),hull); body.position.set(-.2,2.65,0); body.rotation.z=-.055; ship.add(body);
+ const spine=new THREE.Mesh(new THREE.BoxGeometry(5.4,.72,1.55),panel); spine.position.set(-.45,3.72,0); spine.rotation.z=-.10; ship.add(spine);
+ const cockpit=new THREE.Mesh(new THREE.BoxGeometry(2.15,1.15,2.45),glass); cockpit.position.set(3.0,3.12,0); cockpit.rotation.z=-.25; cockpit.rotation.y=.08; ship.add(cockpit);
+ const frame=new THREE.Mesh(new THREE.BoxGeometry(2.35,.18,2.7),hullDark); frame.position.set(3.0,3.62,0); frame.rotation.z=-.25; ship.add(frame);
+ for(const side of [-1,1]){ const wing=new THREE.Mesh(new THREE.BoxGeometry(4.4,.28,1.65),hullDark); wing.position.set(-.75,2.05,side*2.35); wing.rotation.y=side*.16; wing.rotation.z=-side*.08; ship.add(wing); const tip=new THREE.Mesh(new THREE.BoxGeometry(1.7,.18,1.0),damaged); tip.position.set(-2.7,1.88,side*3.35); tip.rotation.y=side*.28; ship.add(tip); }
+ for(const side of [-1,1]){ const eng=new THREE.Mesh(new THREE.CylinderGeometry(.62,.72,2.1,12),hullDark); eng.rotation.z=Math.PI/2; eng.position.set(-4,2.55,side*.88); ship.add(eng); const ex=new THREE.Mesh(new THREE.CylinderGeometry(.38,.52,.16,12),orange); ex.rotation.z=Math.PI/2; ex.position.set(-5.08,2.55,side*.88); ship.add(ex); }
+ const broken=new THREE.Mesh(new THREE.CylinderGeometry(.48,.68,1.7,10),damaged); broken.rotation.z=Math.PI/2; broken.position.set(-4.15,2.25,0); ship.add(broken);
+ for(const side of [-1,1]){ const strut=new THREE.Mesh(new THREE.BoxGeometry(.22,1.3,.22),hullDark); strut.position.set(-1.2,1.25,side*1); strut.rotation.z=side*.22; ship.add(strut); }
+ for(let i=0;i<5;i++){ const cable=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.9+Math.random()*.6,6),red); cable.rotation.z=Math.PI/2+(i-2)*.13; cable.position.set(-1.7+i*.42,2.35,.98); ship.add(cable); }
+ for(let i=0;i<7;i++){ const panelPiece=new THREE.Mesh(new THREE.BoxGeometry(.65+Math.random()*.7,.10,.42),damaged); panelPiece.position.set(-3.1+Math.random()*5.2,2+Math.random()*1.2,-1.75-Math.random()*.35); panelPiece.rotation.set(Math.random()*.4,Math.random()*.8,Math.random()*1.2); ship.add(panelPiece); }
+ for(const x of [-2.7,-1.4,-.1,1.2]){ const light=new THREE.Mesh(new THREE.BoxGeometry(.58,.055,.08),purple); light.position.set(x,3.63,1.63); ship.add(light); }
+ const beacon=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),red); beacon.position.set(-2.2,3.98,.18); ship.add(beacon);
+ for(let i=0;i<9;i++){ const spark=new THREE.Mesh(new THREE.SphereGeometry(.035,6,6),orange); spark.position.set(-1.5+Math.random()*2.4,1.9+Math.random()*1.4,.95+Math.random()*.35); ship.add(spark); }
+ ship.position.set(SHIP_SPOT.x,terrainHeight(SHIP_SPOT.x,SHIP_SPOT.z)+.35,SHIP_SPOT.z); ship.rotation.y=-.25; ship.rotation.z=.10; ship.rotation.x=-.035; scene.add(ship);
+ for(let i=0;i<8;i++){ const d=new THREE.Mesh(new THREE.BoxGeometry(.18+Math.random()*.45,.12+Math.random()*.25,.2+Math.random()*.5),damaged); const x=SHIP_SPOT.x-4+Math.random()*8, z=SHIP_SPOT.z-5+Math.random()*10; d.position.set(x,terrainHeight(x,z)+.15,z); d.rotation.set(Math.random()*2,Math.random()*2,Math.random()*2); scene.add(d); }
+ const crateMat=makeMat(0x343840,.72,.55), crateDark=makeMat(0x171a1f,.55,.72), crateGlow=new THREE.MeshBasicMaterial({color:0x8d5cff});
+ function addCrate(x,z,rot){ const c=new THREE.Group(); const box=new THREE.Mesh(new THREE.BoxGeometry(1.45,.9,1.15),crateMat); box.position.y=.55; c.add(box); for(const y of [.25,.85]){ const rail=new THREE.Mesh(new THREE.BoxGeometry(1.55,.10,1.24),crateDark); rail.position.y=y; c.add(rail); } const band=new THREE.Mesh(new THREE.BoxGeometry(.12,.98,1.25),crateDark); band.position.y=.55; c.add(band); const indicator=new THREE.Mesh(new THREE.BoxGeometry(.18,.08,.05),crateGlow); indicator.position.set(0,.94,.59); c.add(indicator); c.position.set(x,terrainHeight(x,z),z); c.rotation.y=rot; c.rotation.z=rot*.12; scene.add(c); }
+ addCrate(SHIP_SPOT.x+5.2,SHIP_SPOT.z+2.4,.32); addCrate(SHIP_SPOT.x-4.8,SHIP_SPOT.z-2.2,-.55); addCrate(SHIP_SPOT.x+1.7,SHIP_SPOT.z-5.2,.85);
 }
 
 function createNova(){
