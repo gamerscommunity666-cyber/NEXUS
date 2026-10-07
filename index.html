@@ -113,6 +113,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.m
 
 let scene,camera,renderer,clock;
 let player,ship,nova,terrain;
+let rockColliders=[];
+let shipColliders=[];
 let novaBall,novaSensor,novaEyeMat;
 let workbench=null,neutronDevice=null;
 let beamG,beamMat,linkBeam;
@@ -233,6 +235,8 @@ function createTerrain(){
    r.scale.y=sy;
    r.rotation.set(rand()*2,rand()*3,rand()*2);
    scene.add(r);
+   // Lightweight mobile-friendly collision: an XZ circle around each rock.
+   rockColliders.push({x,z,r:size*.82});
  }
  // Giant rock formations far from the crash site
  let placed=0,tries=0;
@@ -285,26 +289,97 @@ function createPlayer(){
 
 function createShip(){
  ship=new THREE.Group();
- const hull=makeMat(0x5d6068,.42,.82), hullDark=makeMat(0x20242b,.34,.9), panel=makeMat(0x343840,.58,.72), damaged=makeMat(0x241d22,.88,.18), glass=makeMat(0x161b28,.16,.8);
- const purple=new THREE.MeshBasicMaterial({color:0x9c65ff}), red=new THREE.MeshBasicMaterial({color:0xff3b32}), orange=new THREE.MeshBasicMaterial({color:0xff8a32});
- const body=new THREE.Mesh(new THREE.BoxGeometry(7.8,1.9,3.2),hull); body.position.set(-.2,2.65,0); body.rotation.z=-.055; ship.add(body);
- const spine=new THREE.Mesh(new THREE.BoxGeometry(5.4,.72,1.55),panel); spine.position.set(-.45,3.72,0); spine.rotation.z=-.10; ship.add(spine);
- const cockpit=new THREE.Mesh(new THREE.BoxGeometry(2.15,1.15,2.45),glass); cockpit.position.set(3.0,3.12,0); cockpit.rotation.z=-.25; cockpit.rotation.y=.08; ship.add(cockpit);
- const frame=new THREE.Mesh(new THREE.BoxGeometry(2.35,.18,2.7),hullDark); frame.position.set(3.0,3.62,0); frame.rotation.z=-.25; ship.add(frame);
- for(const side of [-1,1]){ const wing=new THREE.Mesh(new THREE.BoxGeometry(4.4,.28,1.65),hullDark); wing.position.set(-.75,2.05,side*2.35); wing.rotation.y=side*.16; wing.rotation.z=-side*.08; ship.add(wing); const tip=new THREE.Mesh(new THREE.BoxGeometry(1.7,.18,1.0),damaged); tip.position.set(-2.7,1.88,side*3.35); tip.rotation.y=side*.28; ship.add(tip); }
- for(const side of [-1,1]){ const eng=new THREE.Mesh(new THREE.CylinderGeometry(.62,.72,2.1,12),hullDark); eng.rotation.z=Math.PI/2; eng.position.set(-4,2.55,side*.88); ship.add(eng); const ex=new THREE.Mesh(new THREE.CylinderGeometry(.38,.52,.16,12),orange); ex.rotation.z=Math.PI/2; ex.position.set(-5.08,2.55,side*.88); ship.add(ex); }
- const broken=new THREE.Mesh(new THREE.CylinderGeometry(.48,.68,1.7,10),damaged); broken.rotation.z=Math.PI/2; broken.position.set(-4.15,2.25,0); ship.add(broken);
- for(const side of [-1,1]){ const strut=new THREE.Mesh(new THREE.BoxGeometry(.22,1.3,.22),hullDark); strut.position.set(-1.2,1.25,side*1); strut.rotation.z=side*.22; ship.add(strut); }
- for(let i=0;i<5;i++){ const cable=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.9+Math.random()*.6,6),red); cable.rotation.z=Math.PI/2+(i-2)*.13; cable.position.set(-1.7+i*.42,2.35,.98); ship.add(cable); }
- for(let i=0;i<7;i++){ const panelPiece=new THREE.Mesh(new THREE.BoxGeometry(.65+Math.random()*.7,.10,.42),damaged); panelPiece.position.set(-3.1+Math.random()*5.2,2+Math.random()*1.2,-1.75-Math.random()*.35); panelPiece.rotation.set(Math.random()*.4,Math.random()*.8,Math.random()*1.2); ship.add(panelPiece); }
- for(const x of [-2.7,-1.4,-.1,1.2]){ const light=new THREE.Mesh(new THREE.BoxGeometry(.58,.055,.08),purple); light.position.set(x,3.63,1.63); ship.add(light); }
- const beacon=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),red); beacon.position.set(-2.2,3.98,.18); ship.add(beacon);
- for(let i=0;i<9;i++){ const spark=new THREE.Mesh(new THREE.SphereGeometry(.035,6,6),orange); spark.position.set(-1.5+Math.random()*2.4,1.9+Math.random()*1.4,.95+Math.random()*.35); ship.add(spark); }
- ship.position.set(SHIP_SPOT.x,terrainHeight(SHIP_SPOT.x,SHIP_SPOT.z)+.35,SHIP_SPOT.z); ship.rotation.y=-.25; ship.rotation.z=.10; ship.rotation.x=-.035; scene.add(ship);
- for(let i=0;i<8;i++){ const d=new THREE.Mesh(new THREE.BoxGeometry(.18+Math.random()*.45,.12+Math.random()*.25,.2+Math.random()*.5),damaged); const x=SHIP_SPOT.x-4+Math.random()*8, z=SHIP_SPOT.z-5+Math.random()*10; d.position.set(x,terrainHeight(x,z)+.15,z); d.rotation.set(Math.random()*2,Math.random()*2,Math.random()*2); scene.add(d); }
- const crateMat=makeMat(0x343840,.72,.55), crateDark=makeMat(0x171a1f,.55,.72), crateGlow=new THREE.MeshBasicMaterial({color:0x8d5cff});
- function addCrate(x,z,rot){ const c=new THREE.Group(); const box=new THREE.Mesh(new THREE.BoxGeometry(1.45,.9,1.15),crateMat); box.position.y=.55; c.add(box); for(const y of [.25,.85]){ const rail=new THREE.Mesh(new THREE.BoxGeometry(1.55,.10,1.24),crateDark); rail.position.y=y; c.add(rail); } const band=new THREE.Mesh(new THREE.BoxGeometry(.12,.98,1.25),crateDark); band.position.y=.55; c.add(band); const indicator=new THREE.Mesh(new THREE.BoxGeometry(.18,.08,.05),crateGlow); indicator.position.set(0,.94,.59); c.add(indicator); c.position.set(x,terrainHeight(x,z),z); c.rotation.y=rot; c.rotation.z=rot*.12; scene.add(c); }
- addCrate(SHIP_SPOT.x+5.2,SHIP_SPOT.z+2.4,.32); addCrate(SHIP_SPOT.x-4.8,SHIP_SPOT.z-2.2,-.55); addCrate(SHIP_SPOT.x+1.7,SHIP_SPOT.z-5.2,.85);
+ const hull=makeMat(0x77757a,.58,.78);
+ const dark=makeMat(0x15161c,.48,.72);
+ const broken=makeMat(0x33252a,.9,.18);
+ const inner=makeMat(0x292b34,.72,.55);
+ const glow=glowMat(0x9c65ff,.32);
+
+ // Crash-site ship: boxier and visibly damaged, with a real front-side doorway.
+ const body=new THREE.Mesh(new THREE.BoxGeometry(7.2,2.9,5.8),hull);
+ body.position.set(0,2.05,0);
+ body.rotation.y=.05;
+ ship.add(body);
+
+ const cockpit=new THREE.Mesh(new THREE.BoxGeometry(2.7,1.35,4.8),dark);
+ cockpit.position.set(3.65,2.45,0);
+ cockpit.rotation.y=-.10;
+ ship.add(cockpit);
+
+ // Swept broken wings.
+ for(const side of [-1,1]){
+   const wing=new THREE.Mesh(new THREE.BoxGeometry(3.8,.35,1.8),broken);
+   wing.position.set(-.7,.75,side*3.25);
+   wing.rotation.y=side*.18;
+   wing.rotation.z=side*.08;
+   ship.add(wing);
+ }
+
+ // Engines and damaged central engine.
+ for(const x of [-2.5,-.8,1.0]){
+   for(const side of [-1,1]){
+     const eng=new THREE.Mesh(new THREE.CylinderGeometry(.48,.62,1.55,12),dark);
+     eng.rotation.x=Math.PI/2;
+     eng.position.set(x,.95,side*2.65);
+     ship.add(eng);
+     const e=new THREE.Mesh(new THREE.CircleGeometry(.28,16),glow);
+     e.rotation.x=Math.PI/2; e.position.set(x,.95,side*3.43); ship.add(e);
+   }
+ }
+
+ // Damaged armor plates and exposed struts.
+ for(const x of [-2.6,-1.0,1.2]){
+   const plate=new THREE.Mesh(new THREE.BoxGeometry(1.15,.18,2.4),broken);
+   plate.position.set(x,3.62,(x%2?1:-1)*.5);
+   plate.rotation.z=.12; ship.add(plate);
+ }
+ for(const side of [-1,1]){
+   const strut=new THREE.Mesh(new THREE.BoxGeometry(2.8,.18,.18),dark);
+   strut.position.set(-1.2,.55,side*1.8); strut.rotation.z=side*.18; ship.add(strut);
+ }
+
+ // REAL ENTRY: an open doorway on the +Z side, with a glowing damaged frame.
+ const doorFrameMat=makeMat(0x101117,.42,.8);
+ for(const x of [-1.25,1.25]){
+   const post=new THREE.Mesh(new THREE.BoxGeometry(.25,2.55,.35),doorFrameMat);
+   post.position.set(x,2.0,2.92); ship.add(post);
+ }
+ const top=new THREE.Mesh(new THREE.BoxGeometry(2.75,.28,.35),doorFrameMat);
+ top.position.set(0,3.25,2.92); ship.add(top);
+ const doorGlow=new THREE.Mesh(new THREE.PlaneGeometry(2.25,2.2),glow);
+ doorGlow.position.set(0,1.95,2.86); ship.add(doorGlow);
+
+ // Interior floor, rear wall and HEMTON control panel.
+ const floor=new THREE.Mesh(new THREE.BoxGeometry(6.0,.18,4.7),inner);
+ floor.position.set(-.15,.62,0); ship.add(floor);
+ const back=new THREE.Mesh(new THREE.BoxGeometry(.25,2.1,4.5),inner);
+ back.position.set(-3.0,1.65,0); ship.add(back);
+ const console=new THREE.Mesh(new THREE.BoxGeometry(.18,1.45,1.9),dark);
+ console.position.set(2.35,1.55,0); console.rotation.y=Math.PI/2; ship.add(console);
+ const screen=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.62),new THREE.MeshBasicMaterial({color:0x9c65ff,emissive:0x000000}));
+ screen.position.set(2.24,2.05,0); screen.rotation.y=-Math.PI/2; ship.add(screen);
+
+ // Emergency beacon + crash sparks.
+ const beacon=new THREE.Mesh(new THREE.SphereGeometry(.22,12,8),new THREE.MeshBasicMaterial({color:0xff4b66}));
+ beacon.position.set(1.5,3.9,1.7); ship.add(beacon);
+ const beaconRing=new THREE.Mesh(new THREE.TorusGeometry(.38,.045,6,24),glow);
+ beaconRing.position.copy(beacon.position); beaconRing.rotation.x=Math.PI/2; ship.add(beaconRing);
+
+ // Position the ship low enough to actually bite into the terrain instead of floating.
+ const ground=terrainHeight(SHIP_SPOT.x,SHIP_SPOT.z);
+ ship.position.set(SHIP_SPOT.x,ground-.75,SHIP_SPOT.z);
+ ship.rotation.y=-.25;
+ ship.rotation.z=.04;
+ scene.add(ship);
+
+ // Ship collision leaves the +Z doorway open.
+ shipColliders=[
+   {x:-2.0,z:0,w:2.0,d:5.2},
+   {x:2.0,z:0,w:2.0,d:5.2},
+   {x:0,z:-2.55,w:6.0,d:1.1},
+   {x:-2.8,z:2.45,w:.6,d:1.0},
+   {x:2.8,z:2.45,w:.6,d:1.0}
+ ];
 }
 
 function createNova(){
@@ -893,6 +968,25 @@ function setupButtons(){
 }
 
 /* ---------- per-frame updates ---------- */
+function blockedByColliders(nx,nz){
+ const playerR=.48;
+ for(const c of rockColliders){
+   const dx=nx-c.x,dz=nz-c.z;
+   const d=Math.hypot(dx,dz);
+   if(d<c.r+playerR)return true;
+ }
+ if(ship){
+   // Transform proposed world position into ship-local XZ space.
+   const dx=nx-ship.position.x,dz=nz-ship.position.z;
+   const cy=Math.cos(-ship.rotation.y),sy=Math.sin(-ship.rotation.y);
+   const lx=dx*cy-dz*sy,lz=dx*sy+dz*cy;
+   for(const c of shipColliders){
+     if(Math.abs(lx-c.x)<c.w/2+playerR && Math.abs(lz-c.z)<c.d/2+playerR)return true;
+   }
+ }
+ return false;
+}
+
 function updatePlayer(dt){
  let ix=joyX, iz=joyY;
  if(keys.KeyA)ix-=1;
@@ -915,8 +1009,11 @@ function updatePlayer(dt){
  velocityZ+=(targetZ-velocityZ)*smooth;
 
  const p=player.position;
- p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,-235,235);
- p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,-235,235);
+ const nx=THREE.MathUtils.clamp(p.x+velocityX*dt,-235,235);
+ const nz=THREE.MathUtils.clamp(p.z+velocityZ*dt,-235,235);
+ // Resolve X and Z separately so the player can slide along rocks and the wreck.
+ if(!blockedByColliders(nx,p.z)) p.x=nx; else velocityX=0;
+ if(!blockedByColliders(p.x,nz)) p.z=nz; else velocityZ=0;
 
  // Gravity and jump (time-based so it works at any frame rate)
  velocityY-=22*dt;
