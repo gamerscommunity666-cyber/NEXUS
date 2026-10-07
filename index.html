@@ -712,6 +712,134 @@ function uvScale(g,w,h,d,tile){
  }
 }
 
+
+/* ============================================================
+   AURELIS WORLD STRUCTURES — physical exploration landmarks
+   ============================================================ */
+const worldStructureFx=[];
+function structureMat(color,rough=.9,metal=.15){
+  return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal});
+}
+function structureGlow(color,opacity=.55){
+  return new THREE.MeshBasicMaterial({color,transparent:true,opacity,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+}
+function addStructurePart(g,geo,mat,x,y,z,rotY=0){
+  const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.rotation.y=rotY; m.castShadow=true; m.receiveShadow=true; g.add(m); return m;
+}
+function addAncientRune(g,x,y,z,w,h,depth=0.05,rotY=0){
+  const rune=new THREE.Mesh(new THREE.BoxGeometry(w,h,depth),structureGlow(0x9c63ff,.72));
+  rune.position.set(x,y,z); rune.rotation.y=rotY; g.add(rune); return rune;
+}
+function addAlienPlant(x,z,scale=1){
+  const g=new THREE.Group();
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(.035*scale,.06*scale,1.3*scale,7),structureMat(0x273d32,.8,.1));
+  stem.position.y=.65*scale; g.add(stem);
+  for(let i=0;i<5;i++){
+    const a=i*Math.PI*2/5, leaf=new THREE.Mesh(new THREE.ConeGeometry(.13*scale,.62*scale,6),structureGlow(i%2?0x6f4cff:0x35d9d0,.58));
+    leaf.position.set(Math.cos(a)*.18*scale,.92*scale+Math.sin(i*1.7)*.12*scale,Math.sin(a)*.18*scale);
+    leaf.rotation.z=-Math.cos(a)*.7; leaf.rotation.x=Math.sin(a)*.7; g.add(leaf);
+  }
+  g.position.set(x,terrainHeight(x,z),z); scene.add(g);
+}
+function createWorldStructures(){
+  const ancient=structureMat(0x3d3036,.92,.38);
+  const ancientDark=structureMat(0x17151b,.96,.5);
+  const edge=structureMat(0x67545f,.78,.62);
+  const purple=structureGlow(0x9b5cff,.75);
+  const cyan=structureGlow(0x35d9ff,.62);
+  const black=structureMat(0x05040a,1,0);
+
+  // ---------- MAIN BURIED RUIN ----------
+  {
+    const x=118,z=42,g=new THREE.Group(),y=terrainHeight(x,z);
+    addStructurePart(g,new THREE.BoxGeometry(15,2,11),ancient,0,1,0);
+    addStructurePart(g,new THREE.BoxGeometry(2.2,8,2.2),ancientDark,-5.2,5,0);
+    addStructurePart(g,new THREE.BoxGeometry(2.2,6.2,2.2),ancient,-1.7,4.1,-2.9,.08);
+    addStructurePart(g,new THREE.BoxGeometry(2.2,9,2.2),ancientDark,4.8,5,0,-.06);
+    addStructurePart(g,new THREE.BoxGeometry(11,1.1,1.3),edge,0,8.7,0);
+    addStructurePart(g,new THREE.BoxGeometry(1.1,5.8,1.1),edge,-5.9,4,-4.4);
+    addStructurePart(g,new THREE.BoxGeometry(1.1,3.8,1.1),edge,5.8,3,-4.4);
+    const inner=new THREE.Mesh(new THREE.BoxGeometry(5.2,6.5,.35),black); inner.position.set(0,4,-5.5); g.add(inner);
+    const portal=new THREE.Mesh(new THREE.BoxGeometry(4.3,5.6,.08),purple); portal.position.set(0,4,-5.72); g.add(portal);
+    for(let i=0;i<5;i++) addAncientRune(g,-1.8+i*.9,5.1,-5.79,.28,1.0,.06);
+    const cap=new THREE.Mesh(new THREE.TorusGeometry(3.2,.16,8,48),purple); cap.rotation.x=Math.PI/2; cap.position.set(0,7.1,-5.9); g.add(cap);
+    g.position.set(x,y,z); scene.add(g); solids.push({x,z,r:8.5});
+    worldStructureFx.push({type:'ruin',ring:cap,phase:0.4});
+  }
+
+  // ---------- SIGNAL TOWER ----------
+  {
+    const x=72,z=-78,g=new THREE.Group(),y=terrainHeight(x,z);
+    addStructurePart(g,new THREE.CylinderGeometry(5.2,6.4,1.8,8),ancientDark,0,.9,0,Math.PI/8);
+    addStructurePart(g,new THREE.CylinderGeometry(2.4,3.1,10,8),ancient,0,6,0,Math.PI/8);
+    addStructurePart(g,new THREE.CylinderGeometry(4.4,4.4,.55,8),edge,0,10.8,0,Math.PI/8);
+    addStructurePart(g,new THREE.ConeGeometry(2.8,5.5,8),ancientDark,0,13.6,0,Math.PI/8);
+    const core=new THREE.Mesh(new THREE.OctahedronGeometry(1.25,1),purple); core.position.y=13.5; g.add(core);
+    const halo=new THREE.Mesh(new THREE.TorusGeometry(3.5,.11,8,48),cyan); halo.rotation.x=Math.PI/2; halo.position.y=10.9; g.add(halo);
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4; addStructurePart(g,new THREE.BoxGeometry(.55,5,.55),edge,Math.cos(a)*4.1,3,Math.sin(a)*4.1,a);
+    }
+    g.position.set(x,y,z); scene.add(g); solids.push({x,z,r:7});
+    worldStructureFx.push({type:'tower',core,halo,phase:1.2});
+  }
+
+  // ---------- BURIED TEMPLE / GATE ----------
+  {
+    const x=-108,z=58,g=new THREE.Group(),y=terrainHeight(x,z);
+    addStructurePart(g,new THREE.BoxGeometry(17,1.6,13),ancientDark,0,.8,0);
+    addStructurePart(g,new THREE.BoxGeometry(2.4,8,2.4),ancient,-5.8,4,0);
+    addStructurePart(g,new THREE.BoxGeometry(2.4,8,2.4),ancient,5.8,4,0);
+    addStructurePart(g,new THREE.BoxGeometry(14,2,2.5),edge,0,8,-.1);
+    addStructurePart(g,new THREE.BoxGeometry(13,1.2,2),ancient,0,2.2,4.5);
+    const gate=new THREE.Mesh(new THREE.BoxGeometry(8.2,7.2,.28),black); gate.position.set(0,4,6.35); g.add(gate);
+    const frame=new THREE.Mesh(new THREE.TorusGeometry(4.5,.22,10,48,Math.PI),purple); frame.rotation.z=Math.PI; frame.position.set(0,4.1,6.55); g.add(frame);
+    for(let i=0;i<7;i++) addAncientRune(g,-3+i,3.0,6.56,.22,1.2,.07);
+    g.position.set(x,y,z); scene.add(g); solids.push({x,z,r:9});
+    worldStructureFx.push({type:'gate',frame,phase:2.3});
+  }
+
+  // ---------- CAVE ENTRANCE ----------
+  {
+    const x=-62,z=88,g=new THREE.Group(),y=terrainHeight(x,z);
+    const rock=structureMat(0x30251f,1,.05);
+    addStructurePart(g,new THREE.DodecahedronGeometry(5.5,1),rock,-4.8,4,0);
+    addStructurePart(g,new THREE.DodecahedronGeometry(5.8,1),rock,4.8,4,0);
+    addStructurePart(g,new THREE.DodecahedronGeometry(6.4,1),rock,0,7.0,0);
+    const mouth=new THREE.Mesh(new THREE.CylinderGeometry(3.8,4.1,9,16,1,true,0,Math.PI),black); mouth.rotation.z=Math.PI/2; mouth.position.set(0,3.2,.3); g.add(mouth);
+    const inner=new THREE.Mesh(new THREE.CylinderGeometry(3.2,3.5,14,14,1,true,0,Math.PI),structureGlow(0x160d20,.9)); inner.rotation.z=Math.PI/2; inner.position.set(4,3.2,.3); g.add(inner);
+    for(let i=0;i<4;i++){
+      const c=new THREE.Mesh(new THREE.OctahedronGeometry(.45+i*.08),purple); c.position.set(-2+i*1.3,1.3+(i%2)*1.1,-3.5); g.add(c);
+    }
+    g.position.set(x,y,z); scene.add(g); solids.push({x,z,r:6});
+    for(let i=0;i<5;i++) addAlienPlant(x-5+i*2.4,z+4+(i%2)*1.4,.7+.15*(i%3));
+  }
+
+  // ---------- SMALL RUIN CLUSTERS ----------
+  const ruins=[[38,74],[-32,-92],[96,96],[-92,-54]];
+  for(let n=0;n<ruins.length;n++){
+    const [x,z]=ruins[n],g=new THREE.Group(),y=terrainHeight(x,z);
+    for(let i=0;i<4;i++){
+      const a=i*Math.PI/2, h=2.8+((n+i)%3)*1.2;
+      addStructurePart(g,new THREE.BoxGeometry(1.3,h,1.3),i%2?ancient:ancientDark,Math.cos(a)*3.1,h/2,Math.sin(a)*3.1,a*.2);
+    }
+    addStructurePart(g,new THREE.BoxGeometry(6.8,.65,1.0),edge,0,2.4,0,.3);
+    const core=new THREE.Mesh(new THREE.OctahedronGeometry(.65),cyan); core.position.y=.9; g.add(core);
+    g.position.set(x,y,z); scene.add(g); solids.push({x,z,r:4.8});
+  }
+}
+function updateWorldStructures(t){
+  for(const f of worldStructureFx){
+    if(f.type==='tower'){
+      f.core.rotation.y=t*.9+f.phase;
+      f.core.position.y=13.5+Math.sin(t*2+f.phase)*.18;
+      f.halo.rotation.z=t*.7+f.phase;
+    }else{
+      if(f.ring) f.ring.rotation.z=t*.35+f.phase;
+      if(f.frame) f.frame.rotation.y=Math.sin(t*.4+f.phase)*.08;
+    }
+  }
+}
+
 function createShip(){
  ship=new THREE.Group();
  const FY=SHIP_FY;
@@ -1554,6 +1682,7 @@ function setup(){
  initTextures();
  createEnvironment();
  createTerrain();
+ createWorldStructures();
  createNova();
  createShip();
  createPlayer();
@@ -1850,6 +1979,7 @@ function animate(){
    updateShipFX(dt,t);
    updateCamera();
    updateWorldFX(dt);
+   updateWorldStructures(t);
    if(beamG.visible){
      beamMat.opacity=.22+Math.sin(t*3)*.08;
      const ring=beamG.getObjectByName("ring");
