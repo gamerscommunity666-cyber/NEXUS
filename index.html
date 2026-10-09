@@ -2927,9 +2927,10 @@ function updatePlayer(dt){
  velocityZ+=(targetZ-velocityZ)*smooth;
 
  const p=player.position;
- p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,-235,235);
- p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,-235,235);
- collideWorld(p,.42);
+ p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,inCave?CAVE_OX-40:-235,inCave?CAVE_OX+40:235);
+ p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,inCave?CAVE_OZ-176:-235,inCave?CAVE_OZ+4:235);
+ // Cave coordinates are offset far from the surface map, so preserve them and use cave-aware collision.
+ collideAny(p,.42,CAVE_OX,CAVE_OZ);
 
  // gravity and jump
  velocityY-=22*dt;
