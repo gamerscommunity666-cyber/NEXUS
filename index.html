@@ -2398,7 +2398,7 @@ function createResearchCenter(){
  wallBox(.45,4.55,25,-19.75,2.65,0,dark);wallBox(.45,4.55,25,19.75,2.65,0,dark);
  wallBox(39.5,4.55,.45,0,2.65,-12.25,dark);
  wallBox(17.7,4.55,.45,-11.15,2.65,12.25,dark);wallBox(17.7,4.55,.45,11.15,2.65,12.25,dark);
- wallBox(4.1,1.05,.45,0,4.38,12.25,dark);
+ box(4.1,1.05,.45,0,4.38,12.25,dark);   // lintel above the door: visual only (it used to be a wallBox, which blocked the doorway)
  // Closed sliding doors block the doorway until both panels retract.
  facilityColl.push({x:0,z:12.5,hx:1.98,hz:.22,door:true});
  // Wall ribs, hull plates, cyan service strips and vents.
@@ -2623,7 +2623,7 @@ function updateFacilityDoor(dt){
  if(!facilityDoorL||!facilityDoorR||!player)return;
  const d=Math.hypot(player.position.x-facilityBaseX,player.position.z-(facilityBaseZ+12.5));
  const target=d<7.0?1:0;const step=Math.min(1,dt*1.6);facilityDoorOpen+=Math.sign(target-facilityDoorOpen)*Math.min(Math.abs(target-facilityDoorOpen),step);
- facilityDoorL.position.x=-1.02-facilityDoorOpen*1.6;facilityDoorR.position.x=1.02+facilityDoorOpen*1.6;facilityDoorR.position.x=1.02+facilityDoorOpen*.98;
+ facilityDoorL.position.x=-1.02-facilityDoorOpen*1.6;facilityDoorR.position.x=1.02+facilityDoorOpen*1.6;
  if(facilityDoorLightMat)facilityDoorLightMat.emissiveIntensity=.6+facilityDoorOpen*.9;
 }
 function updateOxygen(dt){
