@@ -2308,6 +2308,40 @@ function triggerGateEnding(){
    },900);
  },900));
 }
+/* ===================== RESEARCH CENTER HELPERS (used only by createResearchCenter) ===================== */
+// scale the UVs of any geometry (cylinders, tori, shells) so hull panels keep a believable size
+function rcTile(geo,su,sv){const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*su,uv.getY(i)*sv);return geo;}
+// right-triangle prism: tall back face at local z=0, slope falling to z=d. width w centred on x. base sits at local y=0.
+function rcWedge(w,h,d,mat,tile){
+ const s=new THREE.Shape();s.moveTo(0,0);s.lineTo(d,0);s.lineTo(0,h);
+ const geo=new THREE.ExtrudeGeometry(s,{depth:w,bevelEnabled:false});
+ geo.rotateY(-Math.PI/2);geo.translate(w/2,0,0);
+ const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/tile,uv.getY(i)/tile);
+ const m=new THREE.Mesh(geo,mat);m.castShadow=true;m.receiveShadow=true;return m;
+}
+// one draw call for many copies of the same part. items: [x,y,z,sx,sy,sz,ry]
+function rcInstanced(parent,geo,mat,items,cast){
+ if(!items.length)return null;
+ const m=new THREE.InstancedMesh(geo,mat,items.length),o=new THREE.Object3D();
+ for(let i=0;i<items.length;i++){
+   const it=items[i];
+   o.position.set(it[0],it[1],it[2]);o.scale.set(it[3],it[4],it[5]);o.rotation.set(0,it[6]||0,0);o.updateMatrix();
+   m.setMatrixAt(i,o.matrix);
+ }
+ m.instanceMatrix.needsUpdate=true;
+ m.castShadow=!!cast;m.receiveShadow=true;
+ if(m.computeBoundingSphere)m.computeBoundingSphere();
+ parent.add(m);return m;
+}
+// thin cylinder between two points (pipes, guy wires, hoses)
+function rcBetween(parent,a,b,r,mat,seg){
+ const dx=b[0]-a[0],dy=b[1]-a[1],dz=b[2]-a[2],len=Math.hypot(dx,dy,dz)||1;
+ const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,seg||6),mat);
+ m.position.set((a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2);
+ m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx/len,dy/len,dz/len));
+ m.receiveShadow=true;parent.add(m);return m;
+}
+/* ===================== END RESEARCH CENTER HELPERS ===================== */
 function createResearchCenter(){
  if(researchCenter)return researchCenter;
  const gx=(typeof STRUCT!=="undefined"&&Number.isFinite(STRUCT.x))?STRUCT.x+42:90;
@@ -2326,7 +2360,31 @@ function createResearchCenter(){
  function add(geo,mat,x,y,z,ry=0){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.rotation.y=ry;m.castShadow=true;m.receiveShadow=true;g.add(m);return m;}
  function box(w,h,d,x,y,z,mat,ry=0){return add(new THREE.BoxGeometry(w,h,d),mat,x,y,z,ry);}
  function wallBox(w,h,d,x,y,z,mat=wall){box(w,h,d,x,y,z,mat);facilityColl.push({x,z,hx:w/2,hz:d/2,door:false});}
- function glow(w,h,d,x,y,z,mat=trim){box(w,h,d,x,y,z,mat);}
+  // --- new exterior materials (same hull textures as the crashed ship) ---
+  const hullM=new THREE.MeshStandardMaterial({map:TEX.hull||null,color:0xd6dae4,roughness:.5,metalness:.72});
+  const hullDarkM=new THREE.MeshStandardMaterial({map:TEX.hullDark||null,color:0xffffff,roughness:.5,metalness:.78});
+  const padM=new THREE.MeshStandardMaterial({map:TEX.floor||null,color:0xffffff,roughness:.55,metalness:.6});
+  const metalM=new THREE.MeshStandardMaterial({color:0x2a3140,roughness:.55,metalness:.75});
+  const metalLiteM=new THREE.MeshStandardMaterial({color:0x6a7384,roughness:.45,metalness:.8});
+  const ventM=new THREE.MeshStandardMaterial({color:0x10151c,roughness:.8,metalness:.5});
+  const pipeM=new THREE.MeshStandardMaterial({color:0x4a5260,roughness:.45,metalness:.8});
+  const glassM=new THREE.MeshStandardMaterial({color:0x0c1020,emissive:0x07202c,roughness:.1,metalness:.9});
+  const domeM=new THREE.MeshStandardMaterial({color:0xdfe6ee,roughness:.35,metalness:.25});
+  const shellM=hullM.clone();shellM.side=THREE.DoubleSide;
+  const dishM=hullM.clone();dishM.side=THREE.DoubleSide;
+  const hazM=new THREE.MeshBasicMaterial({map:TEX.hazard||null,toneMapped:false,color:0x999999});
+  const cyanG=glow(0x6fe0ff),cyanDim=glow(0x2a8fa8),whiteG=glow(0xdfeaff);
+  const beaconM=glow(0x6fe0ff),navM=glow(0xffa040),haloM=glowMat(0x6fe0ff,.22);
+  function strip(w,h,d,x,y,z,mat=trim){box(w,h,d,x,y,z,mat);}   // (was glow(); renamed so the global glow(color) stays usable)
+  // textured exterior box with correct panel scale; castShadow only when asked
+  function hb(w,h,d,x,y,z,mat,o={}){
+    const geo=new THREE.BoxGeometry(w,h,d);if(o.uv!==false)uvScale(geo,w,h,d,o.tile||2.4);
+    const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);
+    if(o.rx)m.rotation.x=o.rx;if(o.ry)m.rotation.y=o.ry;if(o.rz)m.rotation.z=o.rz;
+    m.castShadow=!!o.cast;m.receiveShadow=true;g.add(m);return m;
+  }
+  function fx(w,h,d,x,y,z,mat){return hb(w,h,d,x,y,z,mat,{uv:false});}      // un-textured trim / glow piece
+  const six=(def,over)=>{const a=[def,def,def,def,def,def];for(const k in over)a[k]=over[k];return a;};
  // 40 x 25 m hull, walkable floor and overhead structure.
  box(40,.36,25,0,.18,0,dark);box(39.2,.08,24.2,0,.4,0,floor);box(40,.34,25,0,5.05,0,dark);
  for(let x=-18;x<=18;x+=3)box(.035,.018,23.4,x,.45,0,inner);
@@ -2339,15 +2397,15 @@ function createResearchCenter(){
  // Closed sliding doors block the doorway until both panels retract.
  facilityColl.push({x:0,z:12.5,hx:1.98,hz:.22,door:true});
  // Wall ribs, hull plates, cyan service strips and vents.
- for(let x=-18;x<=18;x+=6){box(.24,4.25,.28,x,2.58,-12,dark);box(.24,4.25,.28,x,2.58,12,dark);glow(.07,3.6,.07,x,2.55,12.17);}
- for(const side of [-1,1])for(let z=-9;z<=9;z+=6){box(.25,4.1,.3,side*19.5,2.55,z,dark);glow(.06,3.6,.05,side*19.32,2.55,z);box(.18,.9,1.5,side*19.42,1.4,z,inner);for(let k=0;k<4;k++)box(.07,.05,1.25,side*19.3,1.13+k*.17,z,wall);}
+ for(let x=-18;x<=18;x+=6){box(.24,4.25,.28,x,2.58,-12,dark);box(.24,4.25,.28,x,2.58,12,dark);strip(.07,3.6,.07,x,2.55,12.17);}
+ for(const side of [-1,1])for(let z=-9;z<=9;z+=6){box(.25,4.1,.3,side*19.5,2.55,z,dark);strip(.06,3.6,.05,side*19.32,2.55,z);box(.18,.9,1.5,side*19.42,1.4,z,inner);for(let k=0;k<4;k++)box(.07,.05,1.25,side*19.3,1.13+k*.17,z,wall);}
  // Room partitions leave open walk-through gaps: entry, central hall, lab, and storage.
  wallBox(12.2,3.7,.22,-13.8,2.5,7.0,inner);wallBox(12.2,3.7,.22,13.8,2.5,7.0,inner);
  wallBox(11.7,3.7,.22,-13.15,2.5,-2.0,inner);wallBox(11.7,3.7,.22,13.15,2.5,-2.0,inner);
  wallBox(.22,3.7,7.0,7.0,2.5,-8.5,inner);wallBox(.22,3.7,3.0,7.0,2.5,-1.0,inner);
  // Entrance frame and the same two-panel horizontal sliding door style as the ship.
  box(4.35,.18,.55,0,4.45,12.48,dark);box(.18,4.1,.55,-2.18,2.45,12.48,dark);box(.18,4.1,.55,2.18,2.45,12.48,dark);
- glow(3.8,.07,.06,0,4.13,12.79);glow(.07,3.5,.06,-2.02,2.45,12.79);glow(.07,3.5,.06,2.02,2.45,12.79);
+ strip(3.8,.07,.06,0,4.13,12.79);strip(.07,3.5,.06,-2.02,2.45,12.79);strip(.07,3.5,.06,2.02,2.45,12.79);
  facilityDoorL=new THREE.Group();facilityDoorR=new THREE.Group();g.add(facilityDoorL,facilityDoorR);
  const dl=box(1.95,2.55,.18,-1.02,1.72,12.55,dark);facilityDoorL.position.set(-1.02,1.72,12.55);g.remove(dl);facilityDoorL.add(dl);dl.position.set(0,0,0);
  const dr=box(1.95,2.55,.18,1.02,1.72,12.55,dark);facilityDoorR.position.set(1.02,1.72,12.55);g.remove(dr);facilityDoorR.add(dr);dr.position.set(0,0,0);
@@ -2359,12 +2417,10 @@ function createResearchCenter(){
  for(const x of [-15,-12,-9,-6]){add(new THREE.CylinderGeometry(.055,.1,2.4,8),wall,x,6.75,-8);add(new THREE.SphereGeometry(.13,8,6),trim,x,8.0,-8);}
  add(new THREE.CylinderGeometry(.08,.14,3.0,8),wall,14.5,6.7,-8.8);
  const dish=add(new THREE.SphereGeometry(.85,14,8,0,Math.PI*2,0,Math.PI*.55),wall,14.5,8.3,-8.8);dish.rotation.x=-.6;
- add(new THREE.CylinderGeometry(.15,.24,2.2,10),trim,17.0,6.5,-9.3);add(new THREE.SphereGeometry(.42,12,8),white,17.0,7.85,-9.3);
- // External landing struts and warning pads.
- for(const x of [-16,16])for(const z of [-9,9]){add(new THREE.CylinderGeometry(.15,.24,1.0,8),dark,x,-.35,z);box(1.25,.14,.85,x,-.82,z,wall);glow(.72,.035,.42,x,-.72,z,amber);}
+ add(new THREE.CylinderGeometry(.15,.24,2.2,10),trim,17.0,6.5,-9.3);
  // Interior cyan/white lighting and overhead cable trays.
  for(const p of [[-12,3.9,4],[0,3.9,0],[12,3.9,-5],[0,3.9,-9]]){const l=new THREE.PointLight(0x9deeff,.85,12);l.position.set(...p);g.add(l);}
- for(const z of [-8.5,-3.5,2.5,8.5]){box(.12,.12,22,-17.5,4.55,z,dark);glow(.07,.07,22,-17.2,4.46,z);}
+ for(const z of [-8.5,-3.5,2.5,8.5]){box(.12,.12,22,-17.5,4.55,z,dark);strip(.07,.07,22,-17.2,4.46,z);}
  // Main hall consoles and luminous screens.
  for(const x of [-4.8,0,4.8]){box(2.6,.78,.9,x,1.0,2.2,dark);box(2.35,.07,.72,x,1.43,2.2,wall);box(1.05,.62,.07,x,1.93,1.73,trim);box(.85,.43,.025,x,1.93,1.685,white);}
  // Lab benches, racks and broken shelving.
@@ -2372,11 +2428,189 @@ function createResearchCenter(){
  for(const x of [10,15]){for(const y of [.85,1.65,2.45])box(3.5,.12,.8,x,y,-7.5,wall);for(const z of [-7.9,-7.1]){box(.12,2.5,.12,x-1.6,1.5,z,dark);box(.12,2.5,.12,x+1.6,1.5,z,dark);}}
  box(3.8,.14,.45,12.4,.65,-4.5,inner,.28);box(1,.6,.8,9.3,.78,-5.5,dark,.25);box(.75,.48,.65,13.8,.72,-5,wall,-.3);
  // Crates, spare parts, metal cylinders and component salvage.
- for(let i=0;i<6;i++){const x=-5+(i%3)*3.2,z=-8.8-Math.floor(i/3)*2;box(1.25,.85,1,x,.88,z,i%2?wall:dark);box(1.28,.08,1.03,x,1.34,z,inner);glow(.75,.035,.035,x,.95,z+.52,i%2?trim:amber);}
+ for(let i=0;i<6;i++){const x=-5+(i%3)*3.2,z=-8.8-Math.floor(i/3)*2;box(1.25,.85,1,x,.88,z,i%2?wall:dark);box(1.28,.08,1.03,x,1.34,z,inner);strip(.75,.035,.035,x,.95,z+.52,i%2?trim:amber);}
  for(let i=0;i<5;i++){const x=-3.5+i*1.45;const c=add(new THREE.CylinderGeometry(.22,.22,.9,10),i%2?wall:dark,x,.92,-5);c.rotation.z=Math.PI/2;box(.1,.1,.12,x,.92,-4.5,trim);}
  // Signage and beacon marker.
- box(5,.65,.18,0,4.35,2.5,dark);glow(4.3,.1,.08,0,4.35,2.62);box(2.4,2.1,.12,0,1.75,12.88,trim);
- const beacon=add(new THREE.CylinderGeometry(.12,.22,2.2,10),trim,0,5.6,0);add(new THREE.SphereGeometry(.48,12,8),white,0,6.8,0);
+ box(5,.65,.18,0,4.35,2.5,dark);strip(4.3,.1,.08,0,4.35,2.62);
+  // ================= EXTERIOR UPGRADE =================
+  // Everything below is decorative unless a facilityColl entry is pushed next to it.
+  const tr=(x,z)=>terrainHeight(gx+x,gz+z)-gy;                      // terrain height relative to the floor slab
+  const trMin=(x0,z0,x1,z1,n=5)=>{let m=1e9;for(let i=0;i<=n;i++){const t=i/n;m=Math.min(m,tr(x0+(x1-x0)*t,z0+(z1-z0)*t));}return m;};
+  const ub=new THREE.BoxGeometry(1,1,1),ucyl=new THREE.CylinderGeometry(1,1,1,16);
+  const Y0=5.22,SKT=.62,SKY=2.75,SKH=4.26;                          // roof top, skirt top, skin centre/height
+
+  // ---- 1. Foundation: a skirt that follows the hillside, buttress ribs, cyan base line ----
+  function skirtSeg(x0,x1,z0,z1,sx0,sz0,sx1,sz1){
+    const mn=trMin(sx0,sz0,sx1,sz1);if(mn>.9)return;               // buried in the hill: nothing to show
+    const bot=Math.min(-.6,mn-.9);
+    hb(x1-x0,SKT-bot,z1-z0,(x0+x1)/2,(SKT+bot)/2,(z0+z1)/2,hullDarkM);
+  }
+  const ribs=[];
+  function rib(px,pz,alongX){const t=tr(px,pz);if(t>.9)return;const bot=Math.min(-.6,t-.9);ribs.push([px,(SKT+bot)/2,pz,alongX?.5:.32,SKT-bot,alongX?.32:.5]);}
+  const backE=[-20.7,-15.5,-10.3,-5.2,0,5.2,10.3,15.5,20.7],frontL=[-20.7,-15.5,-10.3,-5.2,-3.3],frontR=[3.3,5.2,10.3,15.5,20.7],sideE=[-12.5,-8.4,-4.2,0,4.2,8.4,12.5];
+  for(let i=0;i<backE.length-1;i++)skirtSeg(backE[i],backE[i+1],-13.2,-12.5,backE[i],-13.2,backE[i+1],-13.2);
+  for(const E of [frontL,frontR])for(let i=0;i<E.length-1;i++)skirtSeg(E[i],E[i+1],12.5,13.2,E[i],13.2,E[i+1],13.2);
+  for(const s of [-1,1])for(let i=0;i<sideE.length-1;i++)skirtSeg(s<0?-20.7:20,s<0?-20:20.7,sideE[i],sideE[i+1],s*20.7,sideE[i],s*20.7,sideE[i+1]);
+  for(const x of backE)rib(x,-13.35,true);
+  for(const E of [frontL,frontR])for(const x of E)rib(x,13.35,true);
+  for(const s of [-1,1])for(const z of sideE.slice(1,-1))rib(s*20.85,z,false);
+  rcInstanced(g,ub,metalM,ribs,false);
+  fx(41.4,.05,.05,0,.42,-13.22,cyanG);fx(17.4,.05,.05,-12,.42,13.22,cyanG);fx(17.4,.05,.05,12,.42,13.22,cyanG);
+  for(const s of [-1,1])fx(.05,.05,25,s*20.72,.42,0,cyanG);
+
+  // ---- 2. Hull skin: layered panels over the flat walls (outside the wall colliders, so no new colliders) ----
+  hb(40.2,SKH,.1,0,SKY,-12.55,hullM);hb(17.8,SKH,.1,-11.2,SKY,12.55,hullM);hb(17.8,SKH,.1,11.2,SKY,12.55,hullM);
+  for(const s of [-1,1])hb(.1,SKH,25.2,s*20.05,SKY,0,hullM);
+  hb(40.4,1,.14,0,1.12,-12.56,hullDarkM);hb(17.8,1,.14,-11.2,1.12,12.56,hullDarkM);hb(17.8,1,.14,11.2,1.12,12.56,hullDarkM);
+  for(const s of [-1,1])hb(.14,1,25.2,s*20.06,1.12,0,hullDarkM);
+  // cornice and roof parapet
+  hb(40.9,.42,.55,0,5.05,12.775,hullDarkM,{cast:true});hb(40.9,.42,.55,0,5.05,-12.775,hullDarkM,{cast:true});
+  for(const s of [-1,1])hb(.55,.42,25,s*20.275,5.05,0,hullDarkM,{cast:true});
+  hb(40.9,.5,.3,0,5.51,12.9,hullM);hb(40.9,.5,.3,0,5.51,-12.9,hullM);
+  for(const s of [-1,1])hb(.3,.5,25,s*20.4,5.51,0,hullM);
+  fx(40.9,.05,.05,0,5.05,13.07,cyanG);fx(40.9,.05,.05,0,5.05,-13.07,cyanG);
+  for(const s of [-1,1])fx(.05,.05,25,s*20.57,5.05,0,cyanG);
+
+  // pilasters with cyan seams (one draw call each)
+  const pil=[],pilSeam=[];
+  for(const x of [-17.5,-12.5,-7.5,-2.5,2.5,7.5,12.5,17.5]){pil.push([x,SKY,-12.71,.5,SKH,.22]);pilSeam.push([x,2.85,-12.835,.07,3.3,.03]);}
+  for(const x of [-17.5,-12.5,-7.5,7.5,12.5,17.5]){pil.push([x,SKY,12.71,.5,SKH,.22]);pilSeam.push([x,2.85,12.835,.07,3.3,.03]);}
+  for(const s of [-1,1])for(const z of [-10,-5,0,5,10]){pil.push([s*20.21,SKY,z,.22,SKH,.5]);pilSeam.push([s*20.335,2.85,z,.03,3.3,.07]);}
+  rcInstanced(g,ub,metalM,pil,false);rcInstanced(g,ub,cyanG,pilSeam,false);
+
+  // windows (dark glossy panes + cyan frames) and low vents; skipped where the hillside buries them
+  const winGlass=[],winFrame=[],winMull=[],ventPl=[],ventSl=[],WY=2.85,WH=1.15,WW=3.3;
+  function addBay(nx,nz,px,pz,win){
+    const tx=Math.abs(nz),tz=Math.abs(nx);                             // tangent along the wall
+    const sz=(a,h,th)=>nx?[th,h,a]:[a,h,th];
+    const P=(o,y,a,h,th)=>{const s=sz(a,h,th);return [px+nx*o,y,pz+nz*o,s[0],s[1],s[2]];};
+    if(win&&tr(px+nx*.4,pz+nz*.4)<=2.0){
+      winGlass.push(P(.03,WY,WW,WH,.06));
+      winFrame.push(P(.06,WY+WH/2+.035,WW+.2,.07,.05),P(.06,WY-WH/2-.035,WW+.2,.07,.05));
+      for(const k of [-1,1]){const s=nx?[.05,WH+.14,.07]:[.07,WH+.14,.05];winFrame.push([px+nx*.06+tx*k*(WW/2+.035),WY,pz+nz*.06+tz*k*(WW/2+.035),s[0],s[1],s[2]]);}
+      winMull.push(P(.07,WY,.08,WH,.08));
+    }
+    if(tr(px+nx*.4,pz+nz*.4)<=1.2){
+      ventPl.push(P(.03,1.12,.95,.55,.05));
+      for(const dy of [-.18,-.06,.06,.18])ventSl.push(P(.06,1.12+dy,.8,.04,.03));
+    }
+  }
+  for(const x of [-15,-10,-5,0,5,10,15])addBay(0,-1,x,-12.6,true);
+  for(const x of [-15,-10,10,15])addBay(0,1,x,12.6,true);
+  for(const s of [-1,1])for(const z of [-7.5,-2.5,2.5,7.5])addBay(s,0,s*20.1,z,true);
+  rcInstanced(g,ub,glassM,winGlass,false);rcInstanced(g,ub,cyanG,winFrame,false);rcInstanced(g,ub,metalM,winMull,false);
+  rcInstanced(g,ub,ventM,ventPl,false);rcInstanced(g,ub,metalLiteM,ventSl,false);
+
+  // pipe runs, clamps and a cable tray (greebles)
+  for(const y of [4.3,4.58]){const p=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,38,8),pipeM);p.rotation.z=Math.PI/2;p.position.set(0,y,-13.0);p.receiveShadow=true;g.add(p);}
+  const wp=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,23,8),pipeM);wp.rotation.x=Math.PI/2;wp.position.set(-20.75,4.4,0);g.add(wp);
+  const clamps=[];for(let x=-17.5;x<=17.5;x+=5)clamps.push([x,4.44,-12.82,.12,.5,.4]);for(let z=-10;z<=10;z+=5)clamps.push([-20.5,4.4,z,.4,.4,.12]);
+  rcInstanced(g,ub,metalLiteM,clamps,false);
+  fx(.38,.1,23,20.5,3.95,0,metalM);
+  const rungs=[];for(let z=-11;z<=11;z+=1.1)rungs.push([20.5,3.99,z,.42,.04,.06]);rcInstanced(g,ub,metalLiteM,rungs,false);
+  for(const [cx,cm] of [[20.45,cyanDim],[20.56,metalLiteM]]){const c=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,23,5),cm);c.rotation.x=Math.PI/2;c.position.set(cx,4.03,0);g.add(c);}
+
+  // ---- 3. Rounded corner towers (4 colliders) ----
+  const rings=[],navCorner=[];
+  for(const [cx,cz] of [[-20,-12.5],[20,-12.5],[-20,12.5],[20,12.5]]){
+    const bot=Math.min(-.6,trMin(cx-1,cz-1,cx+1,cz+1,3)-.9),top=5.95;
+    const geo=new THREE.CylinderGeometry(1.15,1.2,top-bot,16);rcTile(geo,4.8,(top-bot)/1.5);
+    const t=new THREE.Mesh(geo,hullM);t.position.set(cx,(top+bot)/2,cz);t.castShadow=true;t.receiveShadow=true;g.add(t);
+    const cap=new THREE.Mesh(new THREE.CylinderGeometry(1.28,1.28,.2,16),hullDarkM);cap.position.set(cx,6.05,cz);g.add(cap);
+    rings.push([cx,5.5,cz,1.2,.08,1.2],[cx,2.2,cz,1.21,.08,1.21]);navCorner.push([cx,6.25,cz,.22,.22,.22]);
+    facilityColl.push({x:cx,z:cz,hx:1.0,hz:1.0,door:false});
+  }
+  rcInstanced(g,ucyl,cyanG,rings,false);
+
+  // ---- 4. Entrance: platform, ramp, portal jambs, glass transom, curved canopy (4 colliders) ----
+  {const bot=Math.min(-.6,trMin(-3.3,15,3.3,15)-.9);
+   hb(6.6,.4-bot,2.5,0,(.4+bot)/2,13.75,six(hullDarkM,{2:padM}));}
+  hb(6.6,.03,.4,0,.415,14.8,hazM,{tile:.8});
+  for(const s of [-1,1])fx(.05,.05,2.5,s*3.3,.43,13.75,cyanG);
+  const ramp=rcWedge(6.6,.9,3.4,hullDarkM,1.6);ramp.position.set(0,-.5,15.0);g.add(ramp);
+  for(const s of [-1,1]){
+    hb(.6,4.6,.9,s*2.7,2.7,12.95,hullDarkM,{cast:true});
+    facilityColl.push({x:s*2.7,z:12.95,hx:.3,hz:.45,door:false});
+    fx(.08,4.0,.04,s*2.7,2.6,13.42,cyanG);fx(.12,.12,.06,s*2.7,3.6,13.43,whiteG);
+  }
+  hb(4.18,.86,.1,0,3.425,12.52,glassM,{uv:false});                  // fills the gap above the door panels
+  fx(4.18,.05,.06,0,3.0,12.56,cyanG);fx(4.18,.05,.06,0,3.86,12.56,cyanG);fx(.07,.86,.06,0,3.43,12.57,metalM);
+  {const R=4.4,SY=3.7,SC=.38;
+   const geo=new THREE.CylinderGeometry(R,R,4.3,20,1,true,Math.PI/2,Math.PI);rcTile(geo,6.5,2.8);
+   const shell=new THREE.Mesh(geo,shellM);shell.rotation.x=Math.PI/2;shell.scale.z=SC;shell.position.set(0,SY,14.65);shell.castShadow=true;shell.receiveShadow=true;g.add(shell);
+   for(const z of [13.3,14.7,16.1]){const t=new THREE.Mesh(new THREE.TorusGeometry(R+.02,.08,6,24,Math.PI),hullDarkM);t.scale.y=SC;t.position.set(0,SY,z);g.add(t);}
+   const lip=new THREE.Mesh(new THREE.TorusGeometry(R+.03,.1,6,24,Math.PI),cyanG);lip.scale.y=SC;lip.position.set(0,SY,16.8);g.add(lip);
+   for(const s of [-1,1]){
+     hb(.25,.25,4.3,s*4.4,SY-.1,14.65,hullDarkM);
+     const col=new THREE.Mesh(new THREE.CylinderGeometry(.22,.26,4.65,10),hullDarkM);col.position.set(s*4.2,1.425,16.5);col.castShadow=true;col.receiveShadow=true;g.add(col);
+     const band=new THREE.Mesh(new THREE.CylinderGeometry(.235,.235,.5,10),hazM);band.position.set(s*4.2,.55,16.5);g.add(band);
+     const ring=new THREE.Mesh(new THREE.CylinderGeometry(.24,.24,.06,10),cyanG);ring.position.set(s*4.2,3.0,16.5);g.add(ring);
+     facilityColl.push({x:s*4.2,z:16.5,hx:.26,hz:.26,door:false});
+   }
+   fx(.16,.05,3.6,0,SY+R*SC-.08,14.65,whiteG);}
+
+  // ---- 5. Roof: operations deck with angled prow, glass observation band, rotating radar ----
+  hb(12,2.4,8,6,Y0+1.2,-6.5,hullM,{cast:true});
+  fx(12.02,.05,.05,6,7.2,-10.53,cyanG);fx(.05,.05,8.02,-.03,7.2,-6.5,cyanG);fx(.05,.05,8.02,12.03,7.2,-6.5,cyanG);
+  const wedge=rcWedge(12,2.4,3.0,hullM,2.4);wedge.position.set(6,Y0,-2.5);g.add(wedge);
+  for(const t of [.3,.65])fx(11.4,.04,.12,6,Y0+2.4*(1-t)+.023,-2.5+3*t+.019,cyanG).rotation.x=.675;
+  hb(12.2,1,8.2,6,8.12,-6.5,glassM,{uv:false});
+  fx(12.22,.05,.04,6,7.66,-2.37,cyanG);fx(12.22,.05,.04,6,8.58,-2.37,cyanG);fx(12.22,.05,.04,6,7.66,-10.63,cyanG);fx(12.22,.05,.04,6,8.58,-10.63,cyanG);
+  const posts=[];for(let x=0;x<=12;x+=2){posts.push([x,8.12,-2.37,.1,1,.1],[x,8.12,-10.63,.1,1,.1]);}rcInstanced(g,ub,metalM,posts,false);
+  hb(13,.3,9,6,8.77,-6.5,hullDarkM,{cast:true});
+  fx(13,.05,.05,6,8.77,-1.97,cyanG);fx(13,.05,.05,6,8.77,-11.03,cyanG);
+  // rotating radar dish on the deck
+  const radarPost=new THREE.Mesh(new THREE.CylinderGeometry(.14,.2,1.1,8),metalM);radarPost.position.set(9,9.47,-5.5);g.add(radarPost);
+  const radarPivot=new THREE.Group();radarPivot.position.set(9,10.02,-5.5);g.add(radarPivot);
+  const yoke=new THREE.Mesh(new THREE.BoxGeometry(.5,.5,.5),hullDarkM);yoke.position.y=.25;radarPivot.add(yoke);
+  const tilt=new THREE.Group();tilt.position.y=.65;tilt.rotation.x=-1.0;radarPivot.add(tilt);
+  const radarDish=new THREE.Mesh(new THREE.SphereGeometry(1.2,14,8,0,Math.PI*2,Math.PI*.45,Math.PI*.55),dishM);radarDish.position.y=1.2;radarDish.castShadow=true;tilt.add(radarDish);
+  const horn=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,1.5,6),metalLiteM);horn.position.y=.75;tilt.add(horn);
+  const hornTip=new THREE.Mesh(new THREE.SphereGeometry(.09,8,6),cyanG);hornTip.position.y=1.52;tilt.add(hornTip);
+
+  // ---- 6. Roof: comms mast with pulsing beacon, guy wires, comms dome ----
+  fx(1.6,.3,1.6,-2.5,Y0+.15,-8.3,hullDarkM);
+  const mast=new THREE.Mesh(new THREE.CylinderGeometry(.14,.3,9.5,8),metalLiteM);mast.position.set(-2.5,Y0+.3+4.75,-8.3);mast.castShadow=true;g.add(mast);
+  for(const h of [2,4,6,8]){const r=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,.07,12),hullDarkM);r.position.set(-2.5,Y0+.3+h,-8.3);g.add(r);}
+  for(const h of [3.8,6.2]){fx(2.6,.08,.08,-2.5,Y0+.3+h,-8.3,metalLiteM);for(const s of [-1,1])fx(.08,1.0,.5,-2.5+s*1.1,Y0+.3+h+.45,-8.3,metalM);}
+  const mastBeacon=new THREE.Mesh(new THREE.SphereGeometry(.22,10,8),beaconM);mastBeacon.position.set(-2.5,15.25,-8.3);g.add(mastBeacon);
+  const mastHalo=new THREE.Mesh(new THREE.SphereGeometry(.9,10,8),haloM);mastHalo.position.copy(mastBeacon.position);g.add(mastHalo);
+  const amberLamp=new THREE.Mesh(new THREE.SphereGeometry(.1,8,6),glow(0xffa040));amberLamp.position.set(-2.5,12.2,-8.3);g.add(amberLamp);
+  for(const e of [[-2.5,-4.9],[-2.5,-11.7],[-5.9,-8.3]])rcBetween(g,[-2.5,12.5,-8.3],[e[0],Y0,e[1]],.018,metalLiteM,4);
+  {const cx=-13,cz=5.5;
+   const base=new THREE.Mesh(new THREE.CylinderGeometry(2.1,2.3,.7,16),hullDarkM);base.position.set(cx,Y0+.35,cz);base.castShadow=true;g.add(base);
+   const dome=new THREE.Mesh(new THREE.SphereGeometry(1.95,20,10,0,Math.PI*2,0,Math.PI/2),domeM);dome.position.set(cx,Y0+.7,cz);dome.castShadow=true;g.add(dome);
+   const band=new THREE.Mesh(new THREE.TorusGeometry(2.0,.05,4,24),cyanG);band.rotation.x=Math.PI/2;band.position.set(cx,Y0+.72,cz);g.add(band);
+   for(const ry of [0,Math.PI/2]){const sm=new THREE.Mesh(new THREE.TorusGeometry(1.96,.025,4,20,Math.PI),metalM);sm.rotation.y=ry;sm.position.set(cx,Y0+.7,cz);g.add(sm);}}
+
+  // ---- 7. Roof: HVAC units with spinning fans, radiator fins, skylights, nav lights ----
+  const fans=[];
+  for(const [ux,uz] of [[12.5,4.6],[16.3,4.6],[14.4,8.6]]){
+    hb(3.2,1.3,2.3,ux,Y0+.65,uz,hullDarkM,{cast:true});
+    const hood=new THREE.Mesh(new THREE.CylinderGeometry(.75,.75,.1,16),metalM);hood.position.set(ux,Y0+1.35,uz);g.add(hood);
+    const fan=new THREE.Group();fan.position.set(ux,Y0+1.42,uz);g.add(fan);fans.push(fan);
+    for(const ry of [0,Math.PI/2]){const b=new THREE.Mesh(new THREE.BoxGeometry(1.3,.04,.16),metalLiteM);b.rotation.y=ry;fan.add(b);}
+    fx(.1,.1,.05,ux+1.0,Y0+.9,uz+1.17,cyanG);
+  }
+  rcBetween(g,[11.6,Y0+.4,5.75],[11.6,Y0+.4,8.8],.1,pipeM,8);rcBetween(g,[11.6,Y0+.4,8.8],[12.8,Y0+.4,8.8],.1,pipeM,8);
+  hb(6.8,.2,2.3,-5,Y0+.1,9.3,hullDarkM);
+  const fins=[];for(let i=0;i<14;i++)fins.push([-8+i*.46,Y0+.75,9.3,.07,1.3,2.0]);rcInstanced(g,ub,metalM,fins,false);
+  rcInstanced(g,ub,cyanDim,[[-6,Y0+.03,-1,2.4,.05,1.2],[-6,Y0+.03,2.5,2.4,.05,1.2],[4,Y0+.03,3.2,2.4,.05,1.2],[8,Y0+.03,3.2,2.4,.05,1.2]],false);
+  const navCy=[];for(const x of [-15,-5,5,15]){navCy.push([x,5.83,12.9,.14,.14,.14],[x,5.83,-12.9,.14,.14,.14]);}for(const s of [-1,1])for(const z of [-6,6])navCy.push([s*20.4,5.83,z,.14,.14,.14]);
+  rcInstanced(g,ub,cyanG,navCy,false);rcInstanced(g,ub,navM,navCorner,false);
+  // signal beacon on the existing pylon (the old white ball is replaced by this pulsing one)
+  const roofBeacon=new THREE.Mesh(new THREE.SphereGeometry(.38,10,8),beaconM);roofBeacon.position.set(17.0,7.85,-9.3);g.add(roofBeacon);
+  const roofHalo=new THREE.Mesh(new THREE.SphereGeometry(.9,10,8),haloM);roofHalo.position.copy(roofBeacon.position);g.add(roofHalo);
+
+  // ---- 8. Cheap animation: runs only while a beacon / the radar is on screen (time-based, no game loop edits) ----
+  const rcTick=()=>{
+    const t=performance.now()*.001,p=.5+.5*Math.sin(t*3.0),k=.3+1.4*p;
+    beaconM.color.setRGB(.435*k,.878*k,k);haloM.opacity=.08+.22*p;
+    mastHalo.scale.setScalar(1+.5*p);roofHalo.scale.setScalar(1+.5*p);
+    navM.color.setHex(((t*1.4)%1)<.15?0xffa040:0x201005);
+    radarPivot.rotation.y=t*.8;for(const f of fans)f.rotation.y=t*9;
+  };
+  mastBeacon.onBeforeRender=rcTick;radarDish.onBeforeRender=rcTick;roofBeacon.onBeforeRender=rcTick;
  // Wall colliders are used instead of a single circular solid.
  return g;
 }
