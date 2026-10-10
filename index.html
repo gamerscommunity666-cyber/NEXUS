@@ -1181,7 +1181,7 @@ function collideFacility(pos,r){
  if(!facilityColl.length)return;
  const q=facilityLocal(pos.x,pos.z);let lx=q.lx,lz=q.lz;
  for(const b of facilityColl){
-  if(b.door&&facilityDoorOpen>.75)continue;
+  if(b.door&&facilityDoorOpen>.25)continue;
   const cx=Math.max(b.x-b.hx,Math.min(lx,b.x+b.hx));
   const cz=Math.max(b.z-b.hz,Math.min(lz,b.z+b.hz));
   const dx=lx-cx,dz=lz-cz,d2=dx*dx+dz*dz;
