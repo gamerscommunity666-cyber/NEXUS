@@ -3305,7 +3305,7 @@ function updatePlayer(dt){
  p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,-450,450);
  p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,-450,450);
  collideWorld(p,.42);
-
+if(!window._dbg||performance.now()-window._dbg>1000){window._dbg=performance.now();document.getElementById("status").textContent="x="+p.x.toFixed(1)+" z="+p.z.toFixed(1)+" y="+p.y.toFixed(2);}
  // gravity and jump
  velocityY-=22*dt;
  p.y+=velocityY*dt;
