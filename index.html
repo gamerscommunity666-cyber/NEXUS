@@ -230,6 +230,10 @@ let neutronBuilt=false;
 // NEXUS survival system: 2 oxygen percentage points are consumed every 10 seconds.
 let oxygenLevel=100,oxygenTick=0,oxygenRespawnLock=false,oxygenCylinderBuilt=false;
 let researchCenter=null,researchCenterPos={x:0,z:0};
+// Research Center shell collision and ship-style sliding entrance.
+const facilityColl=[];
+let facilityDoorL=null,facilityDoorR=null,facilityDoorOpen=0,facilityDoorLightMat=null;
+let facilityFloorY=0,facilityBaseX=0,facilityBaseZ=0;
 const OXYGEN_COST={metal:2,parts:1};
 
 const ORDER=["HEMTON","NOVA","GATHER","WORKBENCH","NEUTRON","REPAIR","FOLLOW","GATE","RESEARCH"];
@@ -1166,8 +1170,24 @@ function insideShip(x,z){
  const q=shipLocal(x,z);
  return q.lx>-5.45&&q.lx<5.35&&Math.abs(q.lz)<2.3;
 }
+function facilityLocal(x,z){return {lx:x-facilityBaseX,lz:z-facilityBaseZ};}
+function insideFacility(x,z){const q=facilityLocal(x,z);return q.lx>-20.2&&q.lx<20.2&&q.lz>-12.7&&q.lz<12.7;}
+function collideFacility(pos,r){
+ if(!facilityColl.length)return;
+ const q=facilityLocal(pos.x,pos.z);let lx=q.lx,lz=q.lz;
+ for(const b of facilityColl){
+  if(b.door&&facilityDoorOpen>.75)continue;
+  const cx=Math.max(b.x-b.hx,Math.min(lx,b.x+b.hx));
+  const cz=Math.max(b.z-b.hz,Math.min(lz,b.z+b.hz));
+  const dx=lx-cx,dz=lz-cz,d2=dx*dx+dz*dz;
+  if(d2<r*r){if(d2>1e-8){const d=Math.sqrt(d2),k=(r-d)/d;lx+=dx*k;lz+=dz*k;}else{const px=b.hx-Math.abs(lx-b.x),pz=b.hz-Math.abs(lz-b.z);if(px<pz)lx+=(lx>=b.x?1:-1)*(px+r);else lz+=(lz>=b.z?1:-1)*(pz+r);}}
+ }
+ pos.x=facilityBaseX+lx;pos.z=facilityBaseZ+lz;
+}
 function groundHeight(x,z){
- return insideShip(x,z)?SHIP_FLOOR_Y:terrainHeight(x,z);
+ if(insideShip(x,z))return SHIP_FLOOR_Y;
+ if(insideFacility(x,z))return facilityFloorY;
+ return terrainHeight(x,z);
 }
 function collideWorld(pos,r){
  // ship walls and furniture
@@ -1191,6 +1211,8 @@ function collideWorld(pos,r){
    pos.x=ship.position.x+lx*c+lz*s;
    pos.z=ship.position.z-lx*s+lz*c;
  }
+ // Research Center walls and room partitions.
+ collideFacility(pos,r);
  // rocks and crates
  for(const o of solids){
    const ox=pos.x-o.x,oz=pos.z-o.z;
@@ -2290,27 +2312,80 @@ function createResearchCenter(){
  if(researchCenter)return researchCenter;
  const gx=(typeof STRUCT!=="undefined"&&Number.isFinite(STRUCT.x))?STRUCT.x+42:90;
  const gz=(typeof STRUCT!=="undefined"&&Number.isFinite(STRUCT.z))?STRUCT.z+26:-70;
- const gy=terrainHeight(gx,gz); researchCenterPos={x:gx,z:gz};
- const g=new THREE.Group();g.position.set(gx,gy,gz);
- const wall=new THREE.MeshStandardMaterial({color:0x5b6475,metalness:.65,roughness:.55});
- const trim=new THREE.MeshStandardMaterial({color:0x35dff5,emissive:0x087b98,emissiveIntensity:1.2,metalness:.45,roughness:.3});
- const dark=new THREE.MeshStandardMaterial({color:0x171e2a,metalness:.7,roughness:.5});
- const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;g.add(m);return m};
- add(new THREE.BoxGeometry(12,0.5,9),dark,0,.25,0);
- add(new THREE.BoxGeometry(10,3.8,7),wall,0,2.1,0);
- add(new THREE.BoxGeometry(4,2.7,.22),dark,0,1.7,3.61);
- add(new THREE.BoxGeometry(3.6,.12,.18),trim,0,3.25,3.75);
- for(const x of [-4.7,4.7]){add(new THREE.BoxGeometry(.18,3.3,.2),trim,x,2.05,3.58);}
- for(const x of [-3.5,0,3.5])add(new THREE.BoxGeometry(.65,.7,.2),trim,x,2.15,3.73);
- const sign=add(new THREE.BoxGeometry(4,.7,.18),dark,0,4.2,2.5);
- add(new THREE.BoxGeometry(3.6,.12,.08),trim,0,4.2,2.62);
- // Bright doorway marker makes the facility easy to identify at a distance.
- const doorGlow=add(new THREE.BoxGeometry(2.4,2.1,.12),trim,0,1.75,3.82);
- doorGlow.material=trim;
- const beacon=add(new THREE.CylinderGeometry(.12,.22,2.2,10),trim,0,5.5,0);
- const beaconGlow=new THREE.Mesh(new THREE.SphereGeometry(.48,12,8),new THREE.MeshBasicMaterial({color:0x35dff5,transparent:true,opacity:.8}));beaconGlow.position.set(0,6.7,0);g.add(beaconGlow);
- scene.add(g);researchCenter=g;solids.push({x:gx,z:gz,r:5.3});
+ const gy=terrainHeight(gx,gz);
+ researchCenterPos={x:gx,z:gz};facilityBaseX=gx;facilityBaseZ=gz;facilityFloorY=gy+.18;facilityColl.length=0;
+ facilityDoorOpen=0;facilityDoorL=null;facilityDoorR=null;
+ const g=new THREE.Group();g.position.set(gx,gy,gz);scene.add(g);researchCenter=g;
+ const wall=new THREE.MeshStandardMaterial({color:0x586575,metalness:.72,roughness:.5});
+ const dark=new THREE.MeshStandardMaterial({color:0x192330,metalness:.78,roughness:.48});
+ const inner=new THREE.MeshStandardMaterial({color:0x394553,metalness:.58,roughness:.68});
+ const floor=new THREE.MeshStandardMaterial({color:0x303b49,metalness:.7,roughness:.7});
+ const trim=new THREE.MeshStandardMaterial({color:0x35dff5,emissive:0x087b98,emissiveIntensity:1.15,metalness:.45,roughness:.28});
+ const white=new THREE.MeshStandardMaterial({color:0xd8f6ff,emissive:0x5bbbd2,emissiveIntensity:.65});
+ const amber=new THREE.MeshStandardMaterial({color:0xffad45,emissive:0x7c3d08,emissiveIntensity:.7});
+ function add(geo,mat,x,y,z,ry=0){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.rotation.y=ry;m.castShadow=true;m.receiveShadow=true;g.add(m);return m;}
+ function box(w,h,d,x,y,z,mat,ry=0){return add(new THREE.BoxGeometry(w,h,d),mat,x,y,z,ry);}
+ function wallBox(w,h,d,x,y,z,mat=wall){box(w,h,d,x,y,z,mat);facilityColl.push({x,z,hx:w/2,hz:d/2,door:false});}
+ function glow(w,h,d,x,y,z,mat=trim){box(w,h,d,x,y,z,mat);}
+ // 40 x 25 m hull, walkable floor and overhead structure.
+ box(40,.36,25,0,.18,0,dark);box(39.2,.08,24.2,0,.4,0,floor);box(40,.34,25,0,5.05,0,dark);
+ for(let x=-18;x<=18;x+=3)box(.035,.018,23.4,x,.45,0,inner);
+ for(let z=-10;z<=10;z+=3)box(38.5,.018,.035,0,.45,z,inner);
+ // Outer walls. The positive-Z entrance is deliberately left open for the sliding doors.
+ wallBox(.45,4.55,25,-19.75,2.65,0,dark);wallBox(.45,4.55,25,19.75,2.65,0,dark);
+ wallBox(39.5,4.55,.45,0,2.65,-12.25,dark);
+ wallBox(17.7,4.55,.45,-11.15,2.65,12.25,dark);wallBox(17.7,4.55,.45,11.15,2.65,12.25,dark);
+ wallBox(4.1,1.05,.45,0,4.38,12.25,dark);
+ // Closed sliding doors block the doorway until both panels retract.
+ facilityColl.push({x:0,z:12.5,hx:1.98,hz:.22,door:true});
+ // Wall ribs, hull plates, cyan service strips and vents.
+ for(let x=-18;x<=18;x+=6){box(.24,4.25,.28,x,2.58,-12,dark);box(.24,4.25,.28,x,2.58,12,dark);glow(.07,3.6,.07,x,2.55,12.17);}
+ for(const side of [-1,1])for(let z=-9;z<=9;z+=6){box(.25,4.1,.3,side*19.5,2.55,z,dark);glow(.06,3.6,.05,side*19.32,2.55,z);box(.18,.9,1.5,side*19.42,1.4,z,inner);for(let k=0;k<4;k++)box(.07,.05,1.25,side*19.3,1.13+k*.17,z,wall);}
+ // Room partitions leave open walk-through gaps: entry, central hall, lab, and storage.
+ wallBox(12.2,3.7,.22,-13.8,2.5,7.0,inner);wallBox(12.2,3.7,.22,13.8,2.5,7.0,inner);
+ wallBox(11.7,3.7,.22,-13.15,2.5,-2.0,inner);wallBox(11.7,3.7,.22,13.15,2.5,-2.0,inner);
+ wallBox(.22,3.7,7.0,7.0,2.5,-8.5,inner);wallBox(.22,3.7,3.0,7.0,2.5,-1.0,inner);
+ // Entrance frame and the same two-panel horizontal sliding door style as the ship.
+ box(4.35,.18,.55,0,4.45,12.48,dark);box(.18,4.1,.55,-2.18,2.45,12.48,dark);box(.18,4.1,.55,2.18,2.45,12.48,dark);
+ glow(3.8,.07,.06,0,4.13,12.79);glow(.07,3.5,.06,-2.02,2.45,12.79);glow(.07,3.5,.06,2.02,2.45,12.79);
+ facilityDoorL=new THREE.Group();facilityDoorR=new THREE.Group();g.add(facilityDoorL,facilityDoorR);
+ const dl=box(1.95,2.55,.18,-1.02,1.72,12.55,dark);facilityDoorL.position.set(-1.02,1.72,12.55);g.remove(dl);facilityDoorL.add(dl);dl.position.set(0,0,0);
+ const dr=box(1.95,2.55,.18,1.02,1.72,12.55,dark);facilityDoorR.position.set(1.02,1.72,12.55);g.remove(dr);facilityDoorR.add(dr);dr.position.set(0,0,0);
+ for(const door of [facilityDoorL,facilityDoorR]){const line=new THREE.Mesh(new THREE.BoxGeometry(1.35,.05,.025),trim);line.position.set(0,.25,.105);door.add(line);const inset=new THREE.Mesh(new THREE.BoxGeometry(.12,1.85,.035),wall);inset.position.set(0,0,.11);door.add(inset);}
+ facilityDoorLightMat=trim;
+ const lamp=box(.25,.12,.08,0,4.55,12.82,amber);
+ // Roof antenna farm, dish and signal beacon.
+ box(12,.22,4,-11,5.32,-7,dark);box(9,.12,3,-11,5.48,-7,wall);
+ for(const x of [-15,-12,-9,-6]){add(new THREE.CylinderGeometry(.055,.1,2.4,8),wall,x,6.75,-8);add(new THREE.SphereGeometry(.13,8,6),trim,x,8.0,-8);}
+ add(new THREE.CylinderGeometry(.08,.14,3.0,8),wall,14.5,6.7,-8.8);
+ const dish=add(new THREE.SphereGeometry(.85,14,8,0,Math.PI*2,0,Math.PI*.55),wall,14.5,8.3,-8.8);dish.rotation.x=-.6;
+ add(new THREE.CylinderGeometry(.15,.24,2.2,10),trim,17.0,6.5,-9.3);add(new THREE.SphereGeometry(.42,12,8),white,17.0,7.85,-9.3);
+ // External landing struts and warning pads.
+ for(const x of [-16,16])for(const z of [-9,9]){add(new THREE.CylinderGeometry(.15,.24,1.0,8),dark,x,-.35,z);box(1.25,.14,.85,x,-.82,z,wall);glow(.72,.035,.42,x,-.72,z,amber);}
+ // Interior cyan/white lighting and overhead cable trays.
+ for(const p of [[-12,3.9,4],[0,3.9,0],[12,3.9,-5],[0,3.9,-9]]){const l=new THREE.PointLight(0x9deeff,.85,12);l.position.set(...p);g.add(l);}
+ for(const z of [-8.5,-3.5,2.5,8.5]){box(.12,.12,22,-17.5,4.55,z,dark);glow(.07,.07,22,-17.2,4.46,z);}
+ // Main hall consoles and luminous screens.
+ for(const x of [-4.8,0,4.8]){box(2.6,.78,.9,x,1.0,2.2,dark);box(2.35,.07,.72,x,1.43,2.2,wall);box(1.05,.62,.07,x,1.93,1.73,trim);box(.85,.43,.025,x,1.93,1.685,white);}
+ // Lab benches, racks and broken shelving.
+ for(const x of [-14.5,-10]){box(3,.15,1.5,x,1.05,-5.5,wall);for(const lx of [-1.25,1.25])for(const lz of [-.55,.55])box(.12,1,.12,x+lx,.58,-5.5+lz,dark);for(let i=0;i<3;i++)box(.12,.75,.12,x-1.2+i*1.2,1.55,-8,inner);}
+ for(const x of [10,15]){for(const y of [.85,1.65,2.45])box(3.5,.12,.8,x,y,-7.5,wall);for(const z of [-7.9,-7.1]){box(.12,2.5,.12,x-1.6,1.5,z,dark);box(.12,2.5,.12,x+1.6,1.5,z,dark);}}
+ box(3.8,.14,.45,12.4,.65,-4.5,inner,.28);box(1,.6,.8,9.3,.78,-5.5,dark,.25);box(.75,.48,.65,13.8,.72,-5,wall,-.3);
+ // Crates, spare parts, metal cylinders and component salvage.
+ for(let i=0;i<6;i++){const x=-5+(i%3)*3.2,z=-8.8-Math.floor(i/3)*2;box(1.25,.85,1,x,.88,z,i%2?wall:dark);box(1.28,.08,1.03,x,1.34,z,inner);glow(.75,.035,.035,x,.95,z+.52,i%2?trim:amber);}
+ for(let i=0;i<5;i++){const x=-3.5+i*1.45;const c=add(new THREE.CylinderGeometry(.22,.22,.9,10),i%2?wall:dark,x,.92,-5);c.rotation.z=Math.PI/2;box(.1,.1,.12,x,.92,-4.5,trim);}
+ // Signage and beacon marker.
+ box(5,.65,.18,0,4.35,2.5,dark);glow(4.3,.1,.08,0,4.35,2.62);box(2.4,2.1,.12,0,1.75,12.88,trim);
+ const beacon=add(new THREE.CylinderGeometry(.12,.22,2.2,10),trim,0,5.6,0);add(new THREE.SphereGeometry(.48,12,8),white,0,6.8,0);
+ // Wall colliders are used instead of a single circular solid.
  return g;
+}
+function updateFacilityDoor(dt){
+ if(!facilityDoorL||!facilityDoorR||!player)return;
+ const d=Math.hypot(player.position.x-facilityBaseX,player.position.z-(facilityBaseZ+12.5));
+ const target=d<4.6?1:0;const step=Math.min(1,dt*1.6);facilityDoorOpen+=Math.sign(target-facilityDoorOpen)*Math.min(Math.abs(target-facilityDoorOpen),step);
+ facilityDoorL.position.x=-1.02-facilityDoorOpen*.98;facilityDoorR.position.x=1.02+facilityDoorOpen*.98;
+ if(facilityDoorLightMat)facilityDoorLightMat.emissiveIntensity=.6+facilityDoorOpen*.9;
 }
 function updateOxygen(dt){
  if(!started||oxygenRespawnLock)return;
@@ -3158,6 +3233,7 @@ function animate(){
    updatePickups(dt,t);
    updateNova(dt,t);
    updateShipFX(dt,t);
+   updateFacilityDoor(dt);
    updateCamera();
    updateWorldFX(dt);
    updateWorldStructures(t);
