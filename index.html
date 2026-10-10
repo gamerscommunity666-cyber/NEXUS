@@ -70,6 +70,14 @@ canvas{display:block;position:fixed;inset:0}
 .stag{position:absolute;min-width:100px;padding:4px 7px;border:1px solid rgba(111,224,255,.35);border-radius:6px;background:rgba(5,3,9,.58);color:#bfefff;font-size:9px;letter-spacing:1px;display:none}
 .stag i{display:inline-block;width:5px;height:5px;border-radius:50%;background:#6fe0ff;margin-right:5px}
 
+
+<style id="nexus-survival-css">
+#oxygenPanel{display:none;margin-top:7px;width:min(230px,58vw);padding:8px 10px;border:1px solid rgba(111,224,255,.28);border-radius:9px;background:rgba(5,8,18,.78);backdrop-filter:blur(8px);color:#e8f7ff;font:10px/1.3 Arial,sans-serif;letter-spacing:1px}
+.oxygenHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.oxygenHead strong{font-size:14px;color:#42e5ff}
+#oxygenTrack{height:7px;background:rgba(255,255,255,.12);border-radius:8px;overflow:hidden}#oxygenFill{display:block;width:100%;height:100%;background:#35dff5;border-radius:8px;transition:width .2s,background .2s}
+#oxygenHint{display:block;margin-top:5px;color:#9bc4d0;font-size:9px}#oxygenPanel.low .oxygenHead strong,#oxygenPanel.low #oxygenHint{color:#ffd45b}#oxygenPanel.low #oxygenFill{background:#ffd45b}#oxygenPanel.critical{border-color:rgba(255,65,75,.8);animation:oxyPulse .8s infinite alternate}#oxygenPanel.critical .oxygenHead strong,#oxygenPanel.critical #oxygenHint{color:#ff646c}#oxygenPanel.critical #oxygenFill{background:#ff424e}@keyframes oxyPulse{from{box-shadow:0 0 0 rgba(255,50,65,0)}to{box-shadow:0 0 14px rgba(255,50,65,.3)}}
+</style>
+
 </head>
 <body>
 <div id="game"></div>
@@ -89,6 +97,7 @@ canvas{display:block;position:fixed;inset:0}
   <div id="topLeft">
     <div id="objective"><b>OBJECTIVE</b><span id="objectiveText">TALK TO HEMTON</span><span id="objectiveSub">GO TO THE CRASHED SHIP</span></div>
     <div id="inv"></div>
+    <div id="oxygenPanel"><div class="oxygenHead"><b>OXYGEN</b><strong id="oxygenValue">100%</strong></div><div id="oxygenTrack"><i id="oxygenFill"></i></div><small id="oxygenHint">LIFE SUPPORT STABLE</small></div>
   </div>
   <div id="toast"></div>
   <div id="status">AURELIS • CRASH SITE</div>
@@ -218,11 +227,16 @@ const WB_COST={metal:3,parts:1};
 const NEUT_COST={metal:2,energy:3,parts:2};
 const inv={metal:0,energy:0,parts:0};
 let neutronBuilt=false;
+// NEXUS survival system: 2 oxygen percentage points are consumed every 10 seconds.
+let oxygenLevel=100,oxygenTick=0,oxygenRespawnLock=false,oxygenCylinderBuilt=false;
+let researchCenter=null,researchCenterPos={x:0,z:0};
+const OXYGEN_COST={metal:2,parts:1};
 
 const ORDER=["HEMTON","NOVA","GATHER","WORKBENCH","NEUTRON","REPAIR","FOLLOW"];
 const OBJ={
  HEMTON:"TALK TO HEMTON",NOVA:"FIND NOVA",GATHER:"GATHER RESOURCES",
- WORKBENCH:"BUILD WORKBENCH",NEUTRON:"BUILD NEUTRON",REPAIR:"REPAIR NOVA",FOLLOW:"FOLLOW NOVA"
+ WORKBENCH:"BUILD WORKBENCH",NEUTRON:"BUILD NEUTRON",REPAIR:"REPAIR NOVA",FOLLOW:"FOLLOW NOVA",
+ OXYGEN:"CRAFT OXYGEN CYLINDER",RESEARCH:"REACH THE RESEARCH CENTER"
 };
 let state="HEMTON";
 let novaMode="damaged"; // damaged | repairing | online
@@ -1425,7 +1439,7 @@ function refreshInv(bumpKey){
 }
 function setState(s){
  state=s;
- objectiveText.textContent=OBJ[s];
+ objectiveText.textContent=OBJ[s]||s.replaceAll("_"," ");
  invEl.style.display=ORDER.indexOf(s)>=ORDER.indexOf("GATHER")?"flex":"none";
  objectiveBox.classList.remove("pulse"); void objectiveBox.offsetWidth; objectiveBox.classList.add("pulse");
 }
@@ -1485,7 +1499,7 @@ function currentAction(){
    case "WORKBENCH": return "BUILD WORKBENCH";
    case "NEUTRON": if(workbench&&dist2D(p,workbench.position)<4.5)return "BUILD NEUTRON";break;
    case "REPAIR": if(dist2D(p,nova.position)<5)return "USE NEUTRON ON NOVA";break;
-   case "FOLLOW": if(dist2D(p,nova.position)<4)return "TALK TO NOVA";break;
+   case "FOLLOW": if(workbench&&dist2D(p,workbench.position)<4.5)return oxygenCylinderBuilt?"REFILL OXYGEN CYLINDER":"CRAFT OXYGEN CYLINDER"; if(dist2D(p,nova.position)<4)return "TALK TO NOVA";break;
  }
  return null;
 }
@@ -1494,14 +1508,10 @@ function interact(){
  if(!started)return;
  if(speaking){if(dlgSkip)dlgSkip();return}
  if(busy)return;
- if(typeof inCave!=="undefined"&&inCave){
-   const c=typeof nearCrystal==="function"?nearCrystal():null;
-   if(c){collectCrystal(c);return;}
-   if(state==="SURFACE" && player.position.z-CAVE_OZ>-5){exitCave();return;}
-   return;
- }
+ if(typeof inCave!=="undefined"&&inCave){toast("CAVE AREA DISABLED IN THIS VERSION",1500);return;}
  const act=currentAction();
  if(!act){fallbackTalk();return}
+ if(act==="CRAFT OXYGEN CYLINDER"||act==="REFILL OXYGEN CYLINDER"){craftOxygenCylinder();return;}
 
  if(state==="HEMTON"){
    setState("NOVA");
@@ -1525,7 +1535,10 @@ function interact(){
    startRepair();
  }else if(state==="FOLLOW"){
    facePlayer();
-   speak("NOVA",NOVA_HINT.FOLLOW);
+   speak("NOVA",["Scanner is online.","Let's survey the open desert.","There may be more salvage beyond the wreckage."],()=>{
+     setState("GATE");gateKnown=true;
+     if(typeof neutron==="function")neutron("UNKNOWN STRUCTURE DETECTED","FOLLOW THE SIGNAL ACROSS THE DESERT");
+   });
  }
 }
 
@@ -1618,7 +1631,7 @@ function startRepair(){
        setTimeout(()=>{
          if(state==="EXPEDITION"){
            setState("SIGNAL");
-           neutron("UNKNOWN SIGNAL DETECTED","FOLLOW THE SIGNAL TO THE CAVE");
+           neutron("UNKNOWN SIGNAL DETECTED","FOLLOW THE SIGNAL ACROSS THE DESERT");
          }
        },1800);
      });
@@ -1670,7 +1683,8 @@ function getWaypoint(){
    case "NEUTRON": return workbench?{pos:workbench.position,name:"WORKBENCH",txt:"GO TO THE WORKBENCH",css:"#b99cff",col:0xa070ff,lift:3}:null;
    case "REPAIR": return {pos:nova.position,name:"NOVA",txt:"BRING THE NEUTRON TO NOVA",css:"#7fe3ff",col:0x6fe0ff,lift:3};
    case "FOLLOW": return {pos:null,txt:"NOVA IS NOW YOUR COMPANION • EXPLORE AURELIS",noDist:true};
-   case "SIGNAL": case "CAVE_ENTRY": case "GATE": return chapter1Waypoint();
+   case "GATE": return chapter1Waypoint();
+   case "RESEARCH": return researchCenter?{pos:researchCenter.position,name:"RESEARCH CENTER",txt:"FOLLOW THE SIGNAL TO THE RESEARCH CENTER",css:"#35e0ff",col:0x35e0ff,lift:5}:null;
  }
  return null;
 }
@@ -2031,32 +2045,7 @@ function createSites(){
    reg({id:"plant",name:"ALIEN FLORA",lines:["BIOLUMINESCENT","WATER SOURCE NEARBY"],x:S.x,y:y0+1.5,z:S.z,radius:7});
  }
 
- /* 5. THE CAVE ENTRANCE (leads to the real cave) */
- {
-   const S=SITES.cave,y0=terrainHeight(S.x,S.z);
-   const dx=-S.x,dz=-5-S.z,dl=Math.hypot(dx,dz);
-   const rot=Math.atan2(-dz/dl,dx/dl);             // local +x faces the ship
-   caveSite.rot=rot;
-   const g=new THREE.Group();g.position.set(S.x,y0,S.z);g.rotation.y=rot;
-   const rock=(lx,lz,size,sy2,sx=1,sz=1,py=null)=>{
-     const m=new THREE.Mesh(rockGeo(size),rockMatSite);
-     m.position.set(lx,py!==null?py:size*.35*sy2,lz);m.scale.set(sx,sy2,sz);m.rotation.y=rand()*6;g.add(m);
-   };
-   rock(0,-3.6,3.4,1.5);rock(0,3.6,3.2,1.5);rock(-3.8,0,4.6,1.6);rock(.2,0,2.4,.55,1.1,2.1,3.35);
-   rock(-1.5,-5.8,2.1,1.1);rock(-1.5,5.6,1.9,1.2);
-   const black=new THREE.Mesh(new THREE.CircleGeometry(1.5,20),new THREE.MeshBasicMaterial({color:0x020103}));
-   black.scale.set(1,1.4,1);black.rotation.y=Math.PI/2;black.position.set(-2.2,1.5,0);g.add(black);
-   const glowSp=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.smoke,color:0x4fc8ff,transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false}));
-   glowSp.scale.set(3,3,1);glowSp.position.set(-2.0,.9,0);g.add(glowSp);
-   for(const [z,s] of [[-.8,.9],[.7,.7],[.1,1.1],[-.3,.6]]){
-     const c=new THREE.Mesh(new THREE.ConeGeometry(.14,.7*s,5),crystalMat);
-     c.position.set(-2.0,.25*s,z);c.rotation.z=(rand()-.5)*.5;g.add(c);
-   }
-   shadowAll(g);scene.add(g);
-   for(const [lx,lz,r] of [[0,-3.6,2.2],[0,3.6,2.0],[-3.8,0,1.4],[-1.5,-5.8,1.4],[-1.5,5.6,1.2]]){const w=toWorld(S,rot,lx,lz);addSolid(w.x,w.z,r)}
-   const mouth=toWorld(S,rot,1.8,0);caveMouth.x=mouth.x;caveMouth.z=mouth.z;
-   reg({id:"cave",name:"CAVE ENTRANCE",lines:["DEPTH: UNKNOWN","SEISMIC ECHO DETECTED"],x:mouth.x,y:y0+1.5,z:mouth.z,radius:4,poi:false});
- }
+ /* 5. Cave sequence removed for the open-desert survival version. */
 
  /* 6. UNKNOWN OBJECT (a dormant shard on the way to the gate) */
  {
@@ -2241,11 +2230,11 @@ function onSurfaceReached(){
  chapter1Speak("HEMTON",["Hemadri."],()=>chapter1Speak("HEMADRI",["NOVA is gone."],()=>chapter1Speak("HEMTON",["I know."],()=>chapter1Speak("HEMADRI",["Then help me find him."],()=>chapter1Speak("HEMTON",["I have detected something else."],()=>chapter1Speak("HEMADRI",["What?"],()=>chapter1Speak("HEMTON",["A signal."],()=>chapter1Speak("HEMADRI",["From NOVA?"],()=>chapter1Speak("HEMTON",["No."],()=>chapter1Speak("HEMTON",["From the gate."],continueToGate))))))))));
 }
 function beginGateNovaReturn(){
- if(gateReturnStarted||gateReturnFinished)return;
- gateReturnStarted=true;gateReturnFinished=true;
- try{nova.visible=true;nova.position.set(gate.novaPt.x,terrainHeight(gate.novaPt.x,gate.novaPt.z)+.65,gate.novaPt.z)}catch(e){}
- try{novaMode="online"}catch(e){}
- chapter1Speak("NOVA",["You came back."],()=>chapter1Speak("HEMADRI",["Where were you?"],()=>chapter1Speak("NOVA",["I don't know."],startNeutronSync)));
+ if(gateReturnStarted)return;gateReturnStarted=true;
+ chapter1Speak("HEMTON",["Gate signal stabilized.","I'm detecting a research facility nearby.","Follow the waypoint, Hemadri."],()=>{
+   if(!researchCenter)createResearchCenter();
+   if(typeof setState==="function")setState("RESEARCH");
+ });
 }
 function startNeutronSync(){
  if(gateSyncRunning)return;gateSyncRunning=true;
@@ -2280,19 +2269,75 @@ function triggerGateEnding(){
    },900);
  },900));
 }
+function createResearchCenter(){
+ if(researchCenter)return researchCenter;
+ const gx=(typeof STRUCT!=="undefined"&&Number.isFinite(STRUCT.x))?STRUCT.x+34:90;
+ const gz=(typeof STRUCT!=="undefined"&&Number.isFinite(STRUCT.z))?STRUCT.z+18:-70;
+ const gy=terrainHeight(gx,gz); researchCenterPos={x:gx,z:gz};
+ const g=new THREE.Group();g.position.set(gx,gy,gz);
+ const wall=new THREE.MeshStandardMaterial({color:0x5b6475,metalness:.65,roughness:.55});
+ const trim=new THREE.MeshStandardMaterial({color:0x35dff5,emissive:0x087b98,emissiveIntensity:1.2,metalness:.45,roughness:.3});
+ const dark=new THREE.MeshStandardMaterial({color:0x171e2a,metalness:.7,roughness:.5});
+ const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;g.add(m);return m};
+ add(new THREE.BoxGeometry(12,0.5,9),dark,0,.25,0);
+ add(new THREE.BoxGeometry(10,3.8,7),wall,0,2.1,0);
+ add(new THREE.BoxGeometry(4,2.7,.22),dark,0,1.7,3.61);
+ add(new THREE.BoxGeometry(3.6,.12,.18),trim,0,3.25,3.75);
+ for(const x of [-4.7,4.7]){add(new THREE.BoxGeometry(.18,3.3,.2),trim,x,2.05,3.58);}
+ for(const x of [-3.5,0,3.5])add(new THREE.BoxGeometry(.65,.7,.2),trim,x,2.15,3.73);
+ const sign=add(new THREE.BoxGeometry(4,.55,.18),dark,0,4.2,2.5);
+ add(new THREE.BoxGeometry(3.6,.08,.08),trim,0,4.2,2.62);
+ scene.add(g);researchCenter=g;solids.push({x:gx,z:gz,r:5.3});
+ return g;
+}
+function updateOxygen(dt){
+ if(!started||oxygenRespawnLock)return;
+ oxygenTick+=dt;
+ while(oxygenTick>=10&&oxygenLevel>0){oxygenTick-=10;oxygenLevel=Math.max(0,oxygenLevel-2);}
+ const panel=document.getElementById("oxygenPanel"),val=document.getElementById("oxygenValue"),fill=document.getElementById("oxygenFill"),hint=document.getElementById("oxygenHint");
+ if(panel){panel.style.display="block";val.textContent=oxygenLevel+"%";fill.style.width=oxygenLevel+"%";panel.classList.toggle("low",oxygenLevel<=20&&oxygenLevel>10);panel.classList.toggle("critical",oxygenLevel<=10);hint.textContent=oxygenLevel<=10?"CRITICAL OXYGEN • RETURN TO RESEARCH CENTER":oxygenLevel<=20?"LOW OXYGEN • FIND SAFETY":"LIFE SUPPORT STABLE";}
+ if(oxygenLevel<=20&&!oxygenRespawnLock&&Math.floor(oxygenTick*2)%8===0){/* warning handled below on threshold crossings */}
+ if(oxygenLevel===20||oxygenLevel===10){if(!window["_oxyWarn"+oxygenLevel]){window["_oxyWarn"+oxygenLevel]=true;toast(oxygenLevel===20?"WARNING: OXYGEN LOW":"CRITICAL OXYGEN — REACH THE RESEARCH CENTER",2600);}}
+ if(oxygenLevel>20){window._oxyWarn20=false;window._oxyWarn10=false;}
+ if(oxygenLevel<=0)respawnAtResearchCenter();
+}
+function respawnAtResearchCenter(){
+ if(oxygenRespawnLock)return;oxygenRespawnLock=true;
+ toast("OXYGEN DEPLETED • RETURNING TO RESEARCH CENTER",2800);
+ setTimeout(()=>{
+   if(!researchCenter)createResearchCenter();
+   inCave=false;try{setCaveLighting(false)}catch(e){}
+   const x=researchCenterPos.x+0,z=researchCenterPos.z+9;
+   player.position.set(x,terrainHeight(x,z),z);velocityX=velocityZ=velocityY=0;yaw=Math.PI;pitch=.08;
+   oxygenLevel=100;oxygenTick=0;window._oxyWarn20=false;window._oxyWarn10=false;
+   oxygenRespawnLock=false;toast("RESEARCH CENTER CHECKPOINT • INVENTORY PRESERVED",3000);
+ },1800);
+}
+function craftOxygenCylinder(){
+ if(oxygenCylinderBuilt){oxygenLevel=100;oxygenTick=0;toast("OXYGEN CYLINDER REFILLED",1800);return;}
+ if(!workbench){toast("BUILD A WORKBENCH FIRST",1800);return;}
+ if(!hasCost(OXYGEN_COST)){toast("NEED 2 METAL + 1 COMPONENT",2000);return;}
+ spend(OXYGEN_COST);oxygenCylinderBuilt=true;oxygenLevel=100;oxygenTick=0;
+ const g=new THREE.Group();const tankMat=new THREE.MeshStandardMaterial({color:0x35dff5,metalness:.65,roughness:.25});const capMat=new THREE.MeshStandardMaterial({color:0x25364a,metalness:.7,roughness:.3});
+ const tank=new THREE.Mesh(new THREE.CylinderGeometry(.28,.32,1.25,12),tankMat);tank.position.y=.65;g.add(tank);
+ const cap=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.18,10),capMat);cap.position.y=1.36;g.add(cap);
+ const gauge=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),capMat);gauge.position.set(.25,1.05,0);g.add(gauge);
+ g.position.set(workbench.position.x+1,workbench.position.y,workbench.position.z);scene.add(g);oxygenCylinder=g;
+ toast("OXYGEN CYLINDER CRAFTED",2200);speak("HEMTON",["Oxygen cylinder assembled.","Monitor the oxygen meter and return to the Research Center if supplies run low."]);
+}
+let oxygenCylinder=null;
+
 function updateChapter1Sites(dt,t){
- if(inCave||!player)return;
- // cave entrance: arriving at the mouth advances SIGNAL -> CAVE_ENTRY and enters; also lets the player return after leaving early
- if(caveMouth.x||caveMouth.z){
-   const dc=Math.hypot(player.position.x-caveMouth.x,player.position.z-caveMouth.z);
-   if(state==="SIGNAL"&&dc<4&&typeof setState==="function")setState("CAVE_ENTRY");
-   if((state==="CAVE_ENTRY"||state==="CAVE"||state==="CRYSTALS")&&dc<3.2&&!inputLocked
-      &&(typeof lastCaveExit==="undefined"||performance.now()-lastCaveExit>3000)
-      &&typeof enterCave==="function")enterCave();
+ if(!player)return;
+ // Open-desert route: the cave is no longer a chapter objective.
+ // Gate interaction remains available, but Nova does not reappear here.
+ const d=gate&&gate.novaPt?Math.hypot(player.position.x-gate.novaPt.x,player.position.z-gate.novaPt.z):1e9;
+ if(state==="GATE"&&d<6){
+   if(!researchCenter){createResearchCenter();}
+   setState("RESEARCH");
+   neutron("RESEARCH CENTER DETECTED","FOLLOW THE SIGNAL TO THE RESEARCH CENTER");
+   toast("RESEARCH CENTER DISCOVERED",2200);
  }
- const d=Math.hypot(player.position.x-gate.novaPt.x,player.position.z-gate.novaPt.z);
- if(state==="GATE"&&d<6){beginGateNovaReturn();return;}
- if(state==="GATE_EVENT"&&gateActive&&d<10&&!gateSyncRunning)triggerGateEnding();
 }
 if(typeof window!=="undefined")window.NEXUS_CHAPTER1={onSurfaceReached,beginGateNovaReturn,startNeutronSync,triggerGateEnding,updateChapter1Sites};
 
@@ -2927,9 +2972,9 @@ function updatePlayer(dt){
  velocityZ+=(targetZ-velocityZ)*smooth;
 
  const p=player.position;
- p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,-235,235);
- p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,-235,235);
- collideAny(p,.42,p.x-velocityX*dt,p.z-velocityZ*dt);
+ p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,-450,450);
+ p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,-450,450);
+ collideWorld(p,.42);
 
  // gravity and jump
  velocityY-=22*dt;
@@ -3092,6 +3137,7 @@ function animate(){
  const t=performance.now()*.001;
  if(started){
    updatePlayer(dt);
+   updateOxygen(dt);
    updateTweens(dt);
    updatePickups(dt,t);
    updateNova(dt,t);
