@@ -2622,8 +2622,8 @@ function createResearchCenter(){
 function updateFacilityDoor(dt){
  if(!facilityDoorL||!facilityDoorR||!player)return;
  const d=Math.hypot(player.position.x-facilityBaseX,player.position.z-(facilityBaseZ+12.5));
- const target=d<4.6?1:0;const step=Math.min(1,dt*1.6);facilityDoorOpen+=Math.sign(target-facilityDoorOpen)*Math.min(Math.abs(target-facilityDoorOpen),step);
- facilityDoorL.position.x=-1.02-facilityDoorOpen*.98;facilityDoorR.position.x=1.02+facilityDoorOpen*.98;
+ const target=d<7.0?1:0;const step=Math.min(1,dt*1.6);facilityDoorOpen+=Math.sign(target-facilityDoorOpen)*Math.min(Math.abs(target-facilityDoorOpen),step);
+ facilityDoorL.position.x=-1.02-facilityDoorOpen*1.6;facilityDoorR.position.x=1.02+facilityDoorOpen*1.6;facilityDoorR.position.x=1.02+facilityDoorOpen*.98;
  if(facilityDoorLightMat)facilityDoorLightMat.emissiveIntensity=.6+facilityDoorOpen*.9;
 }
 function updateOxygen(dt){
