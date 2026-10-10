@@ -1500,7 +1500,8 @@ function currentAction(){
    case "NEUTRON": if(workbench&&dist2D(p,workbench.position)<4.5)return "BUILD NEUTRON";break;
    case "REPAIR": if(dist2D(p,nova.position)<5)return "USE NEUTRON ON NOVA";break;
    case "FOLLOW": if(workbench&&dist2D(p,workbench.position)<4.5)return oxygenCylinderBuilt?"REFILL OXYGEN CYLINDER":"CRAFT OXYGEN CYLINDER"; if(dist2D(p,nova.position)<4)return "TALK TO NOVA";break;
-   case "GATE": if(typeof STRUCT!=="undefined"&&dist2D(p,{x:STRUCT.x,z:STRUCT.z})<30)return "INVESTIGATE THE GATE";break;
+   case "SIGNAL": if(typeof STRUCT!=="undefined"&&dist2D(p,{x:STRUCT.x,z:STRUCT.z})<30)return "INVESTIGATE THE GATE";break;
+   case "GATE": if(typeof STRUCT!=="undefined"&&dist2D(p,{x:STRUCT.x,z:STRUCT.z})<42)return "INVESTIGATE THE GATE";break;
    case "RESEARCH": if(researchCenter&&dist2D(p,researchCenter.position)<9)return "SCAN RESEARCH CENTER";break;
  }
  return null;
@@ -1644,7 +1645,7 @@ function startRepair(){
      ()=>{
        toast("FIRST EXPEDITION",2200);
        setTimeout(()=>{
-         if(state==="EXPEDITION"){
+         if(state==="EXPEDITION"||state==="FOLLOW"){
            setState("SIGNAL");
            neutron("UNKNOWN SIGNAL DETECTED","FOLLOW THE SIGNAL ACROSS THE DESERT");
          }
@@ -1698,6 +1699,7 @@ function getWaypoint(){
    case "NEUTRON": return workbench?{pos:workbench.position,name:"WORKBENCH",txt:"GO TO THE WORKBENCH",css:"#b99cff",col:0xa070ff,lift:3}:null;
    case "REPAIR": return {pos:nova.position,name:"NOVA",txt:"BRING THE NEUTRON TO NOVA",css:"#7fe3ff",col:0x6fe0ff,lift:3};
    case "FOLLOW": return {pos:null,txt:"NOVA IS NOW YOUR COMPANION • EXPLORE AURELIS",noDist:true};
+   case "SIGNAL": return {pos:{x:STRUCT.x,z:STRUCT.z},name:"THE GATE",txt:"FOLLOW THE SIGNAL TO THE GATE",css:"#b99cff",col:0xa070ff,lift:14};
    case "GATE": return chapter1Waypoint();
    case "RESEARCH": return researchCenter?{pos:researchCenter.position,name:"RESEARCH CENTER",txt:"FOLLOW THE SIGNAL TO THE RESEARCH CENTER",css:"#35e0ff",col:0x35e0ff,lift:5}:null;
  }
@@ -2300,8 +2302,11 @@ function createResearchCenter(){
  add(new THREE.BoxGeometry(3.6,.12,.18),trim,0,3.25,3.75);
  for(const x of [-4.7,4.7]){add(new THREE.BoxGeometry(.18,3.3,.2),trim,x,2.05,3.58);}
  for(const x of [-3.5,0,3.5])add(new THREE.BoxGeometry(.65,.7,.2),trim,x,2.15,3.73);
- const sign=add(new THREE.BoxGeometry(4,.55,.18),dark,0,4.2,2.5);
- add(new THREE.BoxGeometry(3.6,.08,.08),trim,0,4.2,2.62);
+ const sign=add(new THREE.BoxGeometry(4,.7,.18),dark,0,4.2,2.5);
+ add(new THREE.BoxGeometry(3.6,.12,.08),trim,0,4.2,2.62);
+ // Bright doorway marker makes the facility easy to identify at a distance.
+ const doorGlow=add(new THREE.BoxGeometry(2.4,2.1,.12),trim,0,1.75,3.82);
+ doorGlow.material=trim;
  const beacon=add(new THREE.CylinderGeometry(.12,.22,2.2,10),trim,0,5.5,0);
  const beaconGlow=new THREE.Mesh(new THREE.SphereGeometry(.48,12,8),new THREE.MeshBasicMaterial({color:0x35dff5,transparent:true,opacity:.8}));beaconGlow.position.set(0,6.7,0);g.add(beaconGlow);
  scene.add(g);researchCenter=g;solids.push({x:gx,z:gz,r:5.3});
@@ -2848,6 +2853,7 @@ function setup(){
  createEnvironment();
  createTerrain();
  createWorldStructures();
+ createResearchCenter();
  createNova();
  createShip();
  createPlayer();
