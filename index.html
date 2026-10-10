@@ -208,10 +208,15 @@ function rawH(wx,wz){
 }
 const PAD_Y=rawH(SHIP_SPOT.x,SHIP_SPOT.z)-.05;
 const PAD_IN=9,PAD_OUT=18;
+ const RC_CENTER_X=-66,RC_CENTER_Z=84;
+const RC_PAD_Y=rawH(RC_CENTER_X,RC_CENTER_Z)-.05;
+const RC_PAD_IN=20,RC_PAD_OUT=30;
 function terrainHeight(wx,wz){
  let h=rawH(wx,wz);
- const d=Math.hypot(wx-SHIP_SPOT.x,wz-SHIP_SPOT.z);
- if(d<PAD_OUT){const t=smoothstep(PAD_OUT,PAD_IN,d);h=h*(1-t)+PAD_Y*t}
+ const ds=Math.hypot(wx-SHIP_SPOT.x,wz-SHIP_SPOT.z);
+ if(ds<PAD_OUT){const t=smoothstep(PAD_OUT,PAD_IN,ds);h=h*(1-t)+PAD_Y*t}
+ const dr=Math.hypot(wx-RC_CENTER_X,wz-RC_CENTER_Z);
+ if(dr<RC_PAD_OUT){const t=smoothstep(RC_PAD_OUT,RC_PAD_IN,dr);h=h*(1-t)+RC_PAD_Y*t}
  return h;
 }
 const SHIP_FLOOR_Y=PAD_Y+SHIP_FY;
