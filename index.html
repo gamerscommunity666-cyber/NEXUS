@@ -2053,7 +2053,7 @@ function createSites(){
      c.position.set(-2.0,.25*s,z);c.rotation.z=(rand()-.5)*.5;g.add(c);
    }
    shadowAll(g);scene.add(g);
-   for(const [lx,lz,r] of [[0,-3.6,2.6],[0,3.6,2.5],[-3.8,0,3.6],[-1.5,-5.8,1.8],[-1.5,5.6,1.6]]){const w=toWorld(S,rot,lx,lz);addSolid(w.x,w.z,r)}
+   for(const [lx,lz,r] of [[0,-3.6,2.2],[0,3.6,2.0],[-3.8,0,1.4],[-1.5,-5.8,1.4],[-1.5,5.6,1.2]]){const w=toWorld(S,rot,lx,lz);addSolid(w.x,w.z,r)}
    const mouth=toWorld(S,rot,1.8,0);caveMouth.x=mouth.x;caveMouth.z=mouth.z;
    reg({id:"cave",name:"CAVE ENTRANCE",lines:["DEPTH: UNKNOWN","SEISMIC ECHO DETECTED"],x:mouth.x,y:y0+1.5,z:mouth.z,radius:4,poi:false});
  }
@@ -2286,7 +2286,7 @@ function updateChapter1Sites(dt,t){
  if(caveMouth.x||caveMouth.z){
    const dc=Math.hypot(player.position.x-caveMouth.x,player.position.z-caveMouth.z);
    if(state==="SIGNAL"&&dc<4&&typeof setState==="function")setState("CAVE_ENTRY");
-   if((state==="CAVE_ENTRY"||state==="CAVE"||state==="CRYSTALS")&&dc<2.2&&!inputLocked
+   if((state==="CAVE_ENTRY"||state==="CAVE"||state==="CRYSTALS")&&dc<3.2&&!inputLocked
       &&(typeof lastCaveExit==="undefined"||performance.now()-lastCaveExit>3000)
       &&typeof enterCave==="function")enterCave();
  }
@@ -2927,10 +2927,9 @@ function updatePlayer(dt){
  velocityZ+=(targetZ-velocityZ)*smooth;
 
  const p=player.position;
- p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,inCave?CAVE_OX-40:-235,inCave?CAVE_OX+40:235);
- p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,inCave?CAVE_OZ-176:-235,inCave?CAVE_OZ+4:235);
- // Cave coordinates are offset far from the surface map, so preserve them and use cave-aware collision.
- collideAny(p,.42,CAVE_OX,CAVE_OZ);
+ p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,-235,235);
+ p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,-235,235);
+ collideAny(p,.42,p.x-velocityX*dt,p.z-velocityZ*dt);
 
  // gravity and jump
  velocityY-=22*dt;
