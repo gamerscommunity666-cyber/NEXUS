@@ -78,6 +78,22 @@ canvas{display:block;position:fixed;inset:0}
 #oxygenHint{display:block;margin-top:5px;color:#9bc4d0;font-size:9px}#oxygenPanel.low .oxygenHead strong,#oxygenPanel.low #oxygenHint{color:#ffd45b}#oxygenPanel.low #oxygenFill{background:#ffd45b}#oxygenPanel.critical{border-color:rgba(255,65,75,.8);animation:oxyPulse .8s infinite alternate}#oxygenPanel.critical .oxygenHead strong,#oxygenPanel.critical #oxygenHint{color:#ff646c}#oxygenPanel.critical #oxygenFill{background:#ff424e}@keyframes oxyPulse{from{box-shadow:0 0 0 rgba(255,50,65,0)}to{box-shadow:0 0 14px rgba(255,50,65,.3)}}
 </style>
 
+<style id="nexus-v06-css">
+#setBtn{right:calc(25px + env(safe-area-inset-right,0px));top:calc(40px + env(safe-area-inset-top,0px));width:44px;height:44px;font-size:18px}
+#boostBtn{display:none;right:calc(108px + env(safe-area-inset-right,0px));bottom:34%;width:64px;height:64px;border-color:#6fe0ff;color:#bff3ff}
+#useBtn,#jumpBtn,#camBtn{margin-right:env(safe-area-inset-right,0px)}
+#topLeft{margin-left:env(safe-area-inset-left,0px)}
+#setPanel,#logPanel{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;background:rgba(2,1,6,.62);touch-action:manipulation}
+.sp{width:min(440px,88vw);max-height:84vh;overflow:auto;padding:14px 16px;border:1px solid rgba(185,156,255,.5);border-radius:14px;background:rgba(10,6,20,.96);font-size:13px;line-height:1.5}
+.sp h3{margin:0 0 10px;font-size:13px;letter-spacing:2px;color:#b99cff}
+.sp .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:11px;letter-spacing:1px}
+.sp button{min-width:44px;min-height:38px;padding:6px 12px;border:1px solid rgba(185,156,255,.5);border-radius:9px;background:rgba(90,55,140,.35);color:#fff;font-size:12px;font-weight:bold;touch-action:manipulation}
+.sp button:active{background:rgba(140,90,210,.6)}
+.sp .row b{display:inline-block;min-width:48px;text-align:center}
+#setClose,#logClose{width:100%;margin-top:12px}
+#logBody{max-height:56vh;overflow:auto;touch-action:pan-y;font-size:13px}
+#logBody p{margin:0 0 9px}
+</style>
 </head>
 <body>
 <div id="game"></div>
@@ -87,7 +103,7 @@ canvas{display:block;position:fixed;inset:0}
 <div id="start">
   <div id="startPanel">
     <h1>NEXUS</h1>
-    <p>AURELIS • CHAPTER 1 • V0.5</p>
+    <p>AURELIS • CHAPTER 1 • V0.6</p>
     <button id="play">PLAY NEXUS</button>
     <div id="loading">Initializing exploration system...</div>
   </div>
@@ -114,6 +130,8 @@ canvas{display:block;position:fixed;inset:0}
   <button class="btn" id="useBtn">USE</button>
   <button class="btn" id="jumpBtn">JUMP</button>
   <button class="btn" id="camBtn">CAM</button>
+  <button class="btn" id="setBtn" aria-label="Settings">&#9881;</button>
+  <button class="btn" id="boostBtn">BOOST</button>
   <div id="hint">SWIPE RIGHT SIDE TO LOOK</div>
 </div>
 
@@ -135,6 +153,14 @@ canvas{display:block;position:fixed;inset:0}
  <div style="font-size:clamp(20px,4vw,38px);font-weight:600;letter-spacing:.24em;color:#a7e8ff">THE BEGINNING</div>
  <div style="font-size:clamp(10px,1.6vw,14px);letter-spacing:.12em;color:#ddd;margin-top:8px">THE JOURNEY ACROSS AURELIS BEGINS</div>
 </div>
+
+<div id="setPanel"><div class="sp"><h3>SETTINGS</h3>
+<div class="row"><span>CAMERA SENSITIVITY</span><span><button id="sensDn">&minus;</button><b id="sensVal">100%</b><button id="sensUp">+</button></span></div>
+<div class="row"><span>INVERT CAMERA Y</span><button id="invBtn">OFF</button></div>
+<div class="row"><span>SOUND</span><button id="muteBtn">ON</button></div>
+<div class="row"><span>REDUCED EFFECTS</span><button id="fxBtn">OFF</button></div>
+<button id="setClose">CLOSE</button></div></div>
+<div id="logPanel"><div class="sp"><h3 id="logTitle"></h3><div id="logBody"></div><button id="logClose">CLOSE</button></div></div>
 
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
@@ -159,6 +185,11 @@ let joyX=0,joyY=0;
 let lookId=null,lastLookX=0,lastLookY=0;
 let walkPhase=0;
 const keys={};
+/* ===== NEXUS V0.6: player settings (saved in localStorage when available) ===== */
+const SET={sens:1,invert:false,mute:false,lowfx:false};
+try{const s=JSON.parse(localStorage.getItem("nexus_settings_v1")||"null");if(s){if(typeof s.sens==="number")SET.sens=Math.min(2,Math.max(.4,s.sens));SET.invert=!!s.invert;SET.mute=!!s.mute;SET.lowfx=!!s.lowfx}}catch(e){}
+function saveSettings(){try{localStorage.setItem("nexus_settings_v1",JSON.stringify(SET))}catch(e){}}
+
 
 const game=document.getElementById("game");
 const joystick=document.getElementById("joystick");
@@ -218,12 +249,17 @@ const PAD_IN=9,PAD_OUT=18;
  const RC_CENTER_X=-66,RC_CENTER_Z=84;
 const RC_PAD_Y=rawH(RC_CENTER_X,RC_CENTER_Z)-.05;
 const RC_PAD_IN=32,RC_PAD_OUT=44;
+const COL_X=168,COL_Z=132,COL_PAD_Y=rawH(COL_X,COL_Z)-.05,COL_PAD_IN=34,COL_PAD_OUT=52;
+const CAVE_STATES=["SIGNAL","CAVE_ENTRY","CAVE","CRYSTALS","SURFACE"];
+const WORLD_B=245;   // terrain mesh is 500x500: keep outdoor movement on the ground
 function terrainHeight(wx,wz){
  let h=rawH(wx,wz);
  const ds=Math.hypot(wx-SHIP_SPOT.x,wz-SHIP_SPOT.z);
  if(ds<PAD_OUT){const t=smoothstep(PAD_OUT,PAD_IN,ds);h=h*(1-t)+PAD_Y*t}
  const dr=Math.hypot(wx-RC_CENTER_X,wz-RC_CENTER_Z);
  if(dr<RC_PAD_OUT){const t=smoothstep(RC_PAD_OUT,RC_PAD_IN,dr);h=h*(1-t)+RC_PAD_Y*t}
+ const dcol=Math.hypot(wx-COL_X,wz-COL_Z);
+ if(dcol<COL_PAD_OUT){const t=smoothstep(COL_PAD_OUT,COL_PAD_IN,dcol);h=h*(1-t)+COL_PAD_Y*t}
  return h;
 }
 const SHIP_FLOOR_Y=PAD_Y+SHIP_FY;
@@ -502,7 +538,7 @@ function createEnvironment(){
  sky.add(halo);
 
  // lights
- scene.add(new THREE.HemisphereLight(0xe0aa98,0x2a1428,.9));
+ hemiLight=new THREE.HemisphereLight(0xe0aa98,0x2a1428,.9);scene.add(hemiLight);
  sun=new THREE.DirectionalLight(0xffb98a,3.1);
  sun.castShadow=true;
  sun.shadow.mapSize.set(1024,1024);
@@ -510,7 +546,7 @@ function createEnvironment(){
  sc.left=-26;sc.right=26;sc.top=26;sc.bottom=-26;sc.near=10;sc.far=220;sc.updateProjectionMatrix();
  sun.shadow.bias=-.0004;sun.shadow.normalBias=.04;
  scene.add(sun);scene.add(sun.target);
- const fill=new THREE.DirectionalLight(0x6a4aff,.55);
+ const fill=new THREE.DirectionalLight(0x6a4aff,.55);fillLight=fill;
  fill.position.set(60,30,-40);
  scene.add(fill);
 
@@ -635,25 +671,62 @@ function createTerrain(){
 /* ============================================================
    ASTRONAUT
    ============================================================ */
+let roverBoostT=0,roverBoostCD=0,roverDust=null,roverDustLife=null,roverDustI=0,roverDustAcc=0,roverBoostSig="";
+const ROVER_DUST_N=36;
 function createRover(){
  if(rover)return rover;
- rover=new THREE.Group();
+ rover=new THREE.Group();rover.rotation.order="YXZ";
  const hull=new THREE.MeshStandardMaterial({color:0x394454,metalness:.78,roughness:.34});
  const edge=new THREE.MeshStandardMaterial({color:0xa7b7ce,metalness:.9,roughness:.25});
  const dark=new THREE.MeshStandardMaterial({color:0x111722,metalness:.35,roughness:.65});
  const glass=new THREE.MeshStandardMaterial({color:0x4bdcff,emissive:0x08718b,emissiveIntensity:.8,metalness:.6,roughness:.18});
- const glowMat=new THREE.MeshStandardMaterial({color:0x8c58ff,emissive:0x6b20ff,emissiveIntensity:1.5});
+ const glowM=new THREE.MeshStandardMaterial({color:0x8c58ff,emissive:0x6b20ff,emissiveIntensity:1.5});
+ const headM=new THREE.MeshBasicMaterial({color:0xe8fbff,toneMapped:false});
+ const tailM=new THREE.MeshBasicMaterial({color:0xff3b4d,toneMapped:false});
  const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;rover.add(m);return m};
- add(new THREE.BoxGeometry(2.25,.48,3.1),hull,0,.75,0);
- add(new THREE.BoxGeometry(1.55,.55,1.25),hull,0,1.15,-.25);
- add(new THREE.BoxGeometry(1.35,.34,.12),glass,0,1.35,.39);
- add(new THREE.BoxGeometry(1.9,.08,2.65),edge,0,1.02,0);
- add(new THREE.BoxGeometry(.5,.12,.18),glowMat,-.65,.65,1.57);add(new THREE.BoxGeometry(.5,.12,.18),glowMat,.65,.65,1.57);
- add(new THREE.BoxGeometry(.55,.12,.18),glass,-.65,.65,-1.57);add(new THREE.BoxGeometry(.55,.12,.18),glass,.65,.65,-1.57);
- const wheelGeo=new THREE.CylinderGeometry(.42,.42,.28,18);
- for(const x of [-1.08,1.08])for(const z of [-1.02,1.02]){const w=add(wheelGeo,dark,x,.42,z);w.rotation.z=Math.PI/2;const hub=add(new THREE.CylinderGeometry(.18,.18,.3,12),edge,x,.42,z);hub.rotation.z=Math.PI/2;}
- // energy crystal fuel cell
- add(new THREE.OctahedronGeometry(.23,0),glowMat,0,1.55,-.65);
+ const B=(w,h,d)=>new THREE.BoxGeometry(w,h,d);
+ // The FRONT of the rover is -Z (the direction it drives), so the model now matches its motion.
+ add(B(2.2,.42,3.3),hull,0,.78,0);
+ add(B(1.7,.2,3.0),dark,0,.52,0);
+ add(B(1.5,.5,1.35),hull,0,1.2,.35);
+ const ws=add(B(1.3,.42,.1),glass,0,1.22,-.36);ws.rotation.x=.45;
+ add(B(1.95,.2,1.1),hull,0,1.02,-1.1);
+ add(B(1.6,.06,1.2),edge,0,1.48,.35);
+ for(const s of [-1,1]){
+   add(B(.08,.12,2.6),glowM,s*1.12,.8,0);
+   add(B(.5,.08,1.15),edge,s*1.15,.92,-1.05);add(B(.5,.08,1.15),edge,s*1.15,.92,1.05);
+ }
+ add(B(.42,.16,.1),headM,-.7,.86,-1.66);add(B(.42,.16,.1),headM,.7,.86,-1.66);
+ add(B(.42,.16,.1),tailM,-.72,.86,1.66);add(B(.42,.16,.1),tailM,.72,.86,1.66);
+ // scanner mast with a rotating sensor dish
+ add(new THREE.CylinderGeometry(.035,.035,.9,6),dark,.55,1.55,.75);
+ const dish=add(new THREE.CylinderGeometry(.3,.06,.1,12),edge,.55,2.02,.75);dish.rotation.x=.5;rover.userData.sensor=dish;
+ add(new THREE.SphereGeometry(.05,8,6),new THREE.MeshBasicMaterial({color:0x6fe0ff,toneMapped:false}),.55,2.12,.75);
+ add(new THREE.OctahedronGeometry(.2,0),glowM,0,1.4,1.05);   // decorative energy cell (not a fuel tank)
+ // wheels: pivot -> steer -> spin, so they can steer, roll and ride the terrain independently
+ const tireGeo=new THREE.CylinderGeometry(.44,.44,.3,16),hubGeo=new THREE.CylinderGeometry(.2,.2,.34,10),spokeGeo=new THREE.BoxGeometry(.05,.7,.07);
+ const wheels=[];
+ for(const sx of [-1,1])for(const sz of [-1,1]){
+   const piv=new THREE.Group();piv.position.set(sx*1.15,.44,sz*1.05);rover.add(piv);
+   const steer=new THREE.Group();piv.add(steer);
+   const spin=new THREE.Group();steer.add(spin);
+   const tire=new THREE.Mesh(tireGeo,dark);tire.rotation.z=Math.PI/2;tire.castShadow=true;spin.add(tire);
+   const hub=new THREE.Mesh(hubGeo,edge);hub.rotation.z=Math.PI/2;spin.add(hub);
+   for(let i=0;i<3;i++){const sp=new THREE.Mesh(spokeGeo,edge);sp.position.x=sx*.17;sp.rotation.x=i*Math.PI/3;spin.add(sp)}
+   wheels.push({piv,steer,spin,front:sz<0,lx:sx*1.15,lz:sz*1.05,off:0});
+ }
+ rover.userData.wheels=wheels;
+ // headlight beams (additive, cheap) and boost exhaust
+ for(const sx of [-.7,.7]){const c=new THREE.Mesh(new THREE.ConeGeometry(.9,5,12,1,true),glowMat(0xdff6ff,.07));c.rotation.x=Math.PI/2;c.position.set(sx,.86,-4.2);c.renderOrder=2;rover.add(c)}
+ rover.userData.exhaust=[];
+ for(const sx of [-.55,.55]){const c=new THREE.Mesh(new THREE.ConeGeometry(.22,2.2,10,1,true),glowMat(0x6fe0ff,.55));c.rotation.x=Math.PI/2;c.position.set(sx,.9,2.8);c.visible=false;rover.add(c);rover.userData.exhaust.push(c)}
+ // visible interaction marker (shown while the player is near and not driving)
+ const mk=new THREE.Mesh(new THREE.OctahedronGeometry(.22,0),new THREE.MeshBasicMaterial({color:0x6fe0ff,toneMapped:false}));mk.position.y=3;rover.add(mk);rover.userData.marker=mk;
+ // dust trail
+ const dg=new THREE.BufferGeometry(),dp=new Float32Array(ROVER_DUST_N*3);for(let i=0;i<ROVER_DUST_N;i++)dp[i*3+1]=-999;
+ dg.setAttribute("position",new THREE.BufferAttribute(dp,3));
+ roverDust=new THREE.Points(dg,new THREE.PointsMaterial({map:TEX.smoke,color:0xcaa07c,size:1.2,transparent:true,opacity:.35,depthWrite:false}));
+ roverDust.frustumCulled=false;roverDustLife=new Float32Array(ROVER_DUST_N);scene.add(roverDust);
  const gy=terrainHeight(RC_CENTER_X+9,RC_CENTER_Z+17);
  rover.position.set(RC_CENTER_X+9,gy,RC_CENTER_Z+17);
  scene.add(rover);return rover;
@@ -666,7 +739,7 @@ function showChapterTitle(){
 }
 function mountRover(){
  if(!rover)createRover();
- if(roverMounted){roverMounted=false;player.visible=true;player.position.set(rover.position.x,groundHeight(rover.position.x,rover.position.z),rover.position.z-3.2);velocityX=velocityZ=roverSpeed=0;toast('EXITED ROVER',1400);return;}
+ if(roverMounted){roverMounted=false;player.visible=true;{const ex=rover.position.x+Math.cos(rover.rotation.y)*2.4,ez=rover.position.z-Math.sin(rover.rotation.y)*2.4;player.position.set(ex,groundHeight(ex,ez),ez);collideWorld(player.position,.42);}velocityX=velocityZ=roverSpeed=0;roverBoostT=0;toast('EXITED ROVER',1400);return;}
  const d=Math.hypot(player.position.x-rover.position.x,player.position.z-rover.position.z);
  if(d>5){toast('MOVE CLOSER TO THE ROVER',1500);return;}
  roverMounted=true;player.visible=false;player.position.set(rover.position.x,groundHeight(rover.position.x,rover.position.z),rover.position.z);velocityX=velocityZ=velocityY=roverSpeed=0;yaw=rover.rotation.y;thirdPerson=true;toast('ROVER ONLINE • W/A/S/D OR JOYSTICK TO DRIVE • USE TO EXIT',2600);
@@ -676,17 +749,86 @@ function updateRover(dt){
  let steer=joyX,throttle=joyY;
  if(keys.KeyA)steer-=1;if(keys.KeyD)steer+=1;if(keys.KeyW)throttle+=1;if(keys.KeyS)throttle-=1;
  steer=THREE.MathUtils.clamp(steer,-1,1);throttle=THREE.MathUtils.clamp(throttle,-1,1);
+ if(inputLocked){steer=0;throttle=0}
  if(Math.abs(throttle)>.12&&!chapterShown)showChapterTitle();
- roverSpeed+=(throttle*10-roverSpeed)*(1-Math.pow(.02,dt));
+ const boosting=roverBoostT>0;
+ const target=throttle>0?throttle*(boosting?17:10):throttle*5;
+ const brake=roverSpeed*throttle<-.01,idle=Math.abs(throttle)<.05;
+ roverSpeed+=(target-roverSpeed)*(1-Math.exp(-(idle?1.6:brake?5.5:3.2)*dt));
+ if(idle&&Math.abs(roverSpeed)<.05)roverSpeed=0;
  rover.rotation.y-=steer*dt*(.9+Math.abs(roverSpeed)*.055);
- const nx=rover.position.x-Math.sin(rover.rotation.y)*roverSpeed*dt;
- const nz=rover.position.z-Math.cos(rover.rotation.y)*roverSpeed*dt;
- rover.position.x=THREE.MathUtils.clamp(nx,-450,450);rover.position.z=THREE.MathUtils.clamp(nz,-450,450);
- rover.position.y=groundHeight(rover.position.x,rover.position.z);
+ const ry=rover.rotation.y,ox=rover.position.x,oz=rover.position.z;
+ const np=new THREE.Vector3(ox-Math.sin(ry)*roverSpeed*dt,0,oz-Math.cos(ry)*roverSpeed*dt);
+ np.x=THREE.MathUtils.clamp(np.x,-WORLD_B,WORLD_B);np.z=THREE.MathUtils.clamp(np.z,-WORLD_B,WORLD_B);
+ const ix=np.x,iz=np.z;
+ collideWorld(np,1.5);
+ if(Math.hypot(np.x-ix,np.z-iz)>.01)roverSpeed*=Math.pow(.03,dt);   // bump: shed speed instead of passing through
+ rover.position.x=np.x;rover.position.z=np.z;
+ // follow the terrain: height from 4 sample points, pitch and roll from their differences
+ const fx=-Math.sin(ry),fz=-Math.cos(ry),rx=Math.cos(ry),rz=-Math.sin(ry);
+ const px=rover.position.x,pz=rover.position.z;
+ const hF=groundHeight(px+fx*1.3,pz+fz*1.3),hB=groundHeight(px-fx*1.3,pz-fz*1.3),hR=groundHeight(px+rx*1.0,pz+rz*1.0),hL=groundHeight(px-rx*1.0,pz-rz*1.0);
+ const ty=(hF+hB+hR+hL)/4,k=Math.min(1,dt*10);
+ if(Math.abs(ty-rover.position.y)>.8)rover.position.y=ty;else rover.position.y+=(ty-rover.position.y)*k;
+ const pitch_=THREE.MathUtils.clamp(Math.atan2(hF-hB,2.6),-.5,.5),roll_=THREE.MathUtils.clamp(Math.atan2(hR-hL,2.0),-.4,.4);
+ rover.rotation.x+=(pitch_-rover.rotation.x)*k;rover.rotation.z+=(roll_-rover.rotation.z)*k;
+ // wheels: spin, steer, and independent suspension travel
+ const W=rover.userData.wheels;
+ if(W){
+   for(const w of W){
+     w.spin.rotation.x-=roverSpeed*dt/.44;
+     if(w.front)w.steer.rotation.y+=(-steer*.45-w.steer.rotation.y)*Math.min(1,dt*8);
+     const wx=px+rx*w.lx-fx*w.lz,wz=pz+rz*w.lx-fz*w.lz;
+     const dh=THREE.MathUtils.clamp(groundHeight(wx,wz)-ty,-.18,.18);
+     w.off+=(dh-w.off)*Math.min(1,dt*12);w.piv.position.y=.44+w.off;
+   }
+ }
  player.position.set(rover.position.x,rover.position.y,rover.position.z);
- player.rotation.y=rover.rotation.y;yaw=rover.rotation.y;
+ player.rotation.y=rover.rotation.y;
+ if(lookId===null)yaw=lerpAngle(yaw,rover.rotation.y,1-Math.pow(.2,dt));   // camera follows unless the player is looking around
 }
-
+function tryBoost(){
+ if(!roverMounted)return;
+ if(roverBoostT>0)return;
+ if(roverBoostCD>0){toast("BOOST RECHARGING",900);return}
+ if(inv.energy<1){toast("BOOST NEEDS 1 ENERGY CRYSTAL (NOT CONSUMED)",1600);return}
+ roverBoostT=3.2;roverBoostCD=8;toast("ENERGY BOOST",1100);
+ try{blip(300,.4,.1)}catch(e){}
+}
+function updateRoverFX(dt,t){
+ if(!rover)return;
+ const mk=rover.userData.marker;
+ if(mk){mk.visible=!roverMounted&&Math.hypot(player.position.x-rover.position.x,player.position.z-rover.position.z)<14;mk.rotation.y=t*2;mk.position.y=3+Math.sin(t*3)*.12}
+ const sd=rover.userData.sensor;if(sd)sd.rotation.y+=dt*(roverMounted?3:.8);
+ if(!roverMounted)roverBoostT=0;
+ if(roverBoostCD>0)roverBoostCD=Math.max(0,roverBoostCD-dt);
+ if(roverBoostT>0){roverBoostT-=dt;if(roverBoostT<=0){roverBoostT=0;toast("BOOST DEPLETED",900)}}
+ const boosting=roverBoostT>0&&roverMounted;
+ const ex=rover.userData.exhaust;if(ex)for(const c of ex){c.visible=boosting;if(boosting)c.scale.set(1,.85+Math.random()*.3,1)}
+ const tf=boosting?82:70;
+ if(Math.abs(camera.fov-tf)>.05){camera.fov+=(tf-camera.fov)*Math.min(1,dt*5);camera.updateProjectionMatrix()}
+ const bb=document.getElementById("boostBtn");
+ if(bb){
+   const sig=(roverMounted?"1":"0")+(roverBoostCD>0?"c":"")+(inv.energy>=1?"e":"")+(boosting?"b":"");
+   if(sig!==roverBoostSig){roverBoostSig=sig;bb.style.display=roverMounted?"block":"none";bb.style.opacity=(roverBoostCD>0||inv.energy<1)?".45":"1";bb.style.background=boosting?"rgba(60,180,230,.6)":""}
+ }
+ if(roverDust){
+   const a=roverDust.geometry.attributes.position.array;
+   if(roverMounted&&!SET.lowfx&&Math.abs(roverSpeed)>2.5){
+     roverDustAcc+=dt*(boosting?60:25);
+     const ry=rover.rotation.y;
+     while(roverDustAcc>=1){
+       roverDustAcc-=1;const n=roverDustI++%ROVER_DUST_N,i=n*3,sx=Math.random()<.5?-1:1;
+       a[i]=rover.position.x+Math.cos(ry)*sx*1.15+Math.sin(ry)*1.05;a[i+1]=rover.position.y+.3;a[i+2]=rover.position.z-Math.sin(ry)*sx*1.15+Math.cos(ry)*1.05;
+       roverDustLife[n]=.9;
+     }
+   }
+   for(let n=0;n<ROVER_DUST_N;n++){
+     if(roverDustLife[n]>0){roverDustLife[n]-=dt;const i=n*3;a[i+1]+=dt*1.1;a[i]+=dt*.4;if(roverDustLife[n]<=0)a[i+1]=-999}
+   }
+   roverDust.geometry.attributes.position.needsUpdate=true;
+ }
+}
 function createPlayer(){
  player=new THREE.Group();
  const suit=new THREE.MeshStandardMaterial({color:0xeeece6,roughness:.68,metalness:.04});
@@ -952,7 +1094,6 @@ function createColossalShip(){
  add(new THREE.BoxGeometry(12,2.1,27),dark,0,6.7,-.8);
  add(new THREE.BoxGeometry(8.4,2.5,13),edge,0,7.7,-8.2);
  add(new THREE.BoxGeometry(6.8,1.2,7.2),dark,0,8.8,-13.4);
- add(new THREE.BoxGeometry(12,1.1,7),hull,0,4.8,-16.2,-.12);
  // Wide armored wings.
  add(new THREE.BoxGeometry(13,1.1,13),hull,-14,3.8,-1.5,0,0,-.12);
  add(new THREE.BoxGeometry(13,1.1,13),hull,14,3.8,-1.5,0,0,.12);
@@ -974,14 +1115,23 @@ function createColossalShip(){
    const ex=(i-1)*5.5;
    add(new THREE.CylinderGeometry(1.65,2.05,4.6,12),dark,ex,4.8,17.2,Math.PI/2);
    add(new THREE.CylinderGeometry(1.05,1.2,.18,16),cyan,ex,4.8,19.55,Math.PI/2);
-   const halo=add(new THREE.TorusGeometry(1.35,.12,8,24),violet,ex,4.8,19.7);halo.rotation.x=Math.PI/2;
+   const halo=add(new THREE.TorusGeometry(1.35,.12,8,24),violet,ex,4.8,19.7);halo.rotation.x=Math.PI/2;colFX.halos.push(halo);
  }
- // Wide lowered access ramp and glowing entrance.
- add(new THREE.BoxGeometry(7.2,.35,8),dark,0,1.7,-20.2,-.24);
- add(new THREE.BoxGeometry(6.2,.12,7.4),edge,0,1.91,-20.2,-.24);
- for(let i=0;i<5;i++)add(new THREE.BoxGeometry(5.8,.045,.12),cyan,0,2.0-i*.025,-17.6-i*1.15,-.24);
+ // Real, walkable ramp (v0.6): meets the ground at local z=-27 and the doorway sill at z=-17.4.
+ {
+   const {z0,z1,rise}=COL_RAMP,L=Math.hypot(z1-z0,rise),a=Math.atan2(rise,z1-z0),zc=(z0+z1)/2;
+   add(new THREE.BoxGeometry(6.2,.3,L),dark,0,rise/2-.15*Math.cos(a),zc+.15*Math.sin(a),-a);
+   add(new THREE.BoxGeometry(5.6,.05,L-.4),edge,0,rise/2+.03*Math.cos(a),zc-.03*Math.sin(a),-a);
+   for(let i=0;i<6;i++){const lz=z0+1.6+i*1.5;add(new THREE.BoxGeometry(5.4,.04,.12),cyan,0,(lz-z0)/(z1-z0)*rise+.09,lz,-a);}
+   for(const s of [-1,1]){
+     add(new THREE.BoxGeometry(.22,.5,L),edge,s*3.3,rise/2+.2,zc,-a);
+     add(new THREE.BoxGeometry(.3,rise,.3),dark,s*2.8,rise/2,z1-.3);
+   }
+ }
+ // Doorway: hull plate with a glowing portal whose bottom meets the ramp sill.
  add(new THREE.BoxGeometry(7.5,5.2,.4),dark,0,5.5,-17.1);
- add(new THREE.BoxGeometry(5.2,3.8,.12),violet,0,5.5,-17.34);
+ add(new THREE.BoxGeometry(5.2,3.6,.12),violet,0,5.4,-17.34);
+ for(const s of [-1,1])add(new THREE.BoxGeometry(.14,3.7,.14),cyan,s*2.7,5.4,-17.4);
  // Approach lights and scattered hull fragments.
  for(const side of [-1,1])for(let i=0;i<4;i++)add(new THREE.SphereGeometry(.22,10,8),i%2?cyan:amber,side*4.1,.35,-22-i*2.2);
  for(let i=0;i<9;i++){
@@ -989,7 +1139,28 @@ function createColossalShip(){
    const debris=add(new THREE.BoxGeometry(1.4+(i%3)*.6,.24,1+(i%2)*.7),i%2?dark:hull,px,terrainHeight(x+px,z+pz)-y+.18,pz);
    debris.rotation.y=a;debris.rotation.z=i%2?.18:-.14;
  }
- g.position.set(x,y,z);g.rotation.y=-.22;scene.add(g);
+
+ // v0.6 detail pass: panel seams, vents, warning marks, damage, blinking nav lights, smoke.
+ const seamM=makeMat(0x0b1018,.7,.4);
+ const inst=(mat,list)=>{const m=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat,list.length),o=new THREE.Object3D();list.forEach((it,i)=>{o.position.set(it[0],it[1],it[2]);o.scale.set(it[3],it[4],it[5]);o.rotation.set(0,it[6]||0,0);o.updateMatrix();m.setMatrixAt(i,o.matrix)});m.instanceMatrix.needsUpdate=true;m.frustumCulled=false;m.receiveShadow=true;g.add(m);return m};
+ const seams=[],vents=[],marks=[];
+ for(let i=0;i<9;i++)seams.push([0,7.8,-11+i*2.7,12.1,.05,.1]);
+ for(const sx of [-4,-2,0,2,4])seams.push([sx,7.8,0,.1,.05,26.6]);
+ for(const s of [-1,1])for(let i=0;i<8;i++)seams.push([s*8.52,5,-14+i*4,.06,3.0,.12]);
+ for(const s of [-1,1])for(let i=0;i<5;i++)vents.push([s*6.2,6.65,5+i*1.1,2.4,.1,.5]);
+ for(const sx of [-5.5,0,5.5])marks.push([sx,6.66,13.8,2.2,.06,.5]);
+ inst(seamM,seams);inst(dark,vents);inst(amber,marks);
+ // damage: torn-off hull plate on the ground, glowing hull breach, snapped antenna, scorch mark
+ add(new THREE.BoxGeometry(5.5,.3,3.2),dark,-11.5,.7,-9,0,.7,.35);
+ add(new THREE.BoxGeometry(2.4,.12,.9),amber,8.58,5.6,6);
+ add(new THREE.CylinderGeometry(.05,.09,5,6),edge,-2.5,11,-12.8,0,0,.55);
+ if(TEX.scorch){const sc=new THREE.Mesh(new THREE.PlaneGeometry(14,9),new THREE.MeshBasicMaterial({map:TEX.scorch,transparent:true,depthWrite:false,opacity:.85}));sc.rotation.x=-Math.PI/2;sc.position.set(8,.12,22);g.add(sc);}
+ for(const [bx,by,bz,m] of [[-22,4.1,10.4,amber],[22,4.1,10.4,cyan],[0,9.8,-13.4,amber]]){const b=add(new THREE.SphereGeometry(.28,10,8),m,bx,by,bz);b.castShadow=false;colFX.blink.push(b);}
+ for(let i=0;i<3;i++){
+   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.smoke,color:0x3a3340,transparent:true,opacity:.32,depthWrite:false}));
+   sp.scale.set(4,4,1);sp.userData={ph:i/3,x:5.5+(i-1)*.4};sp.position.set(5.5,5,20.2);g.add(sp);colFX.smoke.push(sp);
+ }
+ g.position.set(x,y,z);g.rotation.y=COL_ROT;scene.add(g);
  // A soft cyan beacon helps players spot the ship from the plain.
  const beacon=new THREE.Group();
  const beam=new THREE.Mesh(new THREE.CylinderGeometry(.15,2.1,28,16,1,true),new THREE.MeshBasicMaterial({color:0x56dfff,transparent:true,opacity:.13,side:THREE.DoubleSide,depthWrite:false}));
@@ -998,85 +1169,263 @@ function createColossalShip(){
  beacon.position.set(x,y+8,z);scene.add(beacon);
 }
 
-/* ---------- COLOSSAL DERELICT INTERIOR + SALVAGE ----------
-   The interior lives in a separate world-space pocket and is reached through
-   the visible ramp. This keeps the original crash-ship interior untouched. */
-const COLOSSAL_ENTRY={x:164,z:151};
-const COLOSSAL_ROOM={x:168,z:218};
-let inColossalInterior=false;
-function createColossalInterior(){
- const x=COLOSSAL_ROOM.x,z=COLOSSAL_ROOM.z,y=terrainHeight(x,z),g=new THREE.Group();
- const hull=makeMat(0x657184,.48,.72),dark=makeMat(0x171f2b,.58,.72),trim=makeMat(0xa8b8cc,.32,.84);
- const floor=makeMat(0x303b4b,.64,.68),glass=new THREE.MeshStandardMaterial({color:0x123e55,emissive:0x087b9c,emissiveIntensity:.35,metalness:.65,roughness:.2});
- const cyan=glow(0x52dcff),purple=glow(0x9b63ff),amber=glow(0xffa45c);
- const add=(geo,mat,px,py,pz,rx=0,ry=0,rz=0)=>{const m=new THREE.Mesh(geo,mat);m.position.set(px,py,pz);m.rotation.set(rx,ry,rz);m.castShadow=true;m.receiveShadow=true;g.add(m);return m;};
- // Wide hangar floor and ribbed, damaged walls. The front side has a doorway.
- add(new THREE.BoxGeometry(24,.45,34),floor,0,.05,0);
- add(new THREE.BoxGeometry(24,7,.65),hull,0,3.55,-16.7);
- add(new THREE.BoxGeometry(.65,7,33),hull,-11.7,3.55,0);
- add(new THREE.BoxGeometry(.65,7,33),hull,11.7,3.55,0);
- add(new THREE.BoxGeometry(8,7,.65),hull,-8,3.55,16.7);
- add(new THREE.BoxGeometry(8,7,.65),hull,8,3.55,16.7);
- // Roof beams and transparent skylight panels keep the interior visible on mobile.
- for(let i=-2;i<=2;i++){
-   add(new THREE.BoxGeometry(.42,.45,33),trim,i*4.5,6.9,0);
-   add(new THREE.BoxGeometry(3.8,.12,10),glass,i*4.5,6.65,-9);
+/* ---------- COLOSSAL DERELICT (v0.6): collisions, walkable ramp, real interior ---------- */
+const COL_ROT=-.22,COL_RAMP={z0:-27,z1:-17.4,rise:3.55,half:3.1};
+const COL_COLL=[
+ {x:0,z:0,hx:8.7,hz:17.3},
+ {x:-14,z:-1.5,hx:6.6,hz:6.6},{x:14,z:-1.5,hx:6.6,hz:6.6},
+ {x:-21,z:1.8,hx:2.9,hz:9.3},{x:21,z:1.8,hx:2.9,hz:9.3},
+ {x:0,z:18.4,hx:8.3,hz:1.7},
+ {x:-3.35,z:-22.2,hx:.16,hz:4.9},{x:3.35,z:-22.2,hx:.16,hz:4.9}
+];
+const colFX={halos:[],blink:[],smoke:[]};
+function colossalLocal(wx,wz){const dx=wx-COL_X,dz=wz-COL_Z,c=Math.cos(COL_ROT),s=Math.sin(COL_ROT);return {lx:dx*c-dz*s,lz:dx*s+dz*c}}
+function colossalWorld(lx,lz){const c=Math.cos(COL_ROT),s=Math.sin(COL_ROT);return {x:COL_X+lx*c+lz*s,z:COL_Z-lx*s+lz*c}}
+function colossalRampY(wx,wz){
+ if(Math.abs(wx-COL_X)>45||Math.abs(wz-COL_Z)>45)return null;
+ const q=colossalLocal(wx,wz);
+ if(Math.abs(q.lx)>COL_RAMP.half||q.lz<COL_RAMP.z0||q.lz>COL_RAMP.z1)return null;
+ return COL_PAD_Y+(q.lz-COL_RAMP.z0)/(COL_RAMP.z1-COL_RAMP.z0)*COL_RAMP.rise+.03;
+}
+function colossalNearDoor(p){const q=colossalLocal(p.x,p.z);return Math.abs(q.lx)<3.2&&q.lz>-24&&q.lz<-17.2}
+function collideColossal(pos,r){
+ if(Math.abs(pos.x-COL_X)>48||Math.abs(pos.z-COL_Z)>48)return;
+ const c=Math.cos(COL_ROT),s=Math.sin(COL_ROT),dx=pos.x-COL_X,dz=pos.z-COL_Z;
+ let lx=dx*c-dz*s,lz=dx*s+dz*c;
+ for(const b of COL_COLL){
+   const cx=Math.max(b.x-b.hx,Math.min(lx,b.x+b.hx)),cz=Math.max(b.z-b.hz,Math.min(lz,b.z+b.hz));
+   const ddx=lx-cx,ddz=lz-cz,d2=ddx*ddx+ddz*ddz;
+   if(d2<r*r){
+     if(d2>1e-8){const d=Math.sqrt(d2),k=(r-d)/d;lx+=ddx*k;lz+=ddz*k}
+     else{const px=b.hx-Math.abs(lx-b.x),pz=b.hz-Math.abs(lz-b.z);if(px<pz)lx+=(lx>=b.x?1:-1)*(px+r);else lz+=(lz>=b.z?1:-1)*(pz+r)}
+   }
  }
- add(new THREE.BoxGeometry(24,.35,.7),dark,0,6.75,-16.2);
- add(new THREE.BoxGeometry(24,.35,.7),dark,0,6.75,16.2);
- // Central illuminated walkway and landing markings.
- add(new THREE.BoxGeometry(5,.08,28),dark,0,.32,-.2);
- for(let i=0;i<10;i++) add(new THREE.BoxGeometry(4.2,.045,.12),i%2?cyan:purple,0,.39,-13+i*2.8);
- // Left-side power core and stacked storage lockers.
+ pos.x=COL_X+lx*c+lz*s;pos.z=COL_Z-lx*s+lz*c;
+}
+
+/* The interior is a self-contained pocket far outside the map (same technique as the cave),
+   so terrain can never poke through its walls. Reached by walking up the ramp. */
+const COLOSSAL_ROOM={x:-600,z:-600};
+const INT_FLOOR_Y=.36;
+let inColossalInterior=false,colBusy=false,logOpen=false,colIntroDone=false;
+const intLights=[],intColl=[],logsSeen={};
+let intG=null;
+const intFX={amber:null,flick:null,sparks:[]};
+const INT_LOGS={
+ "READ SHIP LOG":{title:"SHIP LOG - COMMAND TERMINAL 04",body:[
+  "VESSEL: CALYPTRA-CLASS SURVEY HULL. CREW: 212. STATUS: UNRECOVERABLE.",
+  "DAY 41 - Navigation AI HEMTON logged its first LOST SIGNAL: a relay that was never ours, answering from below the surface.",
+  "DAY 44 - HEMTON has now recorded 41 lost signals. It asked the captain to stop listening. Request denied.",
+  "DAY 47 - Signal 42 was not lost. It was waiting. ORIGIN: BENEATH THE GATE. DO NOT ANSWER.",
+  "[REMAINING DATA CORRUPTED]"]},
+ "READ THE CODEX":{title:"CODEX FRAGMENT - UNKNOWN SCRIPT",body:[
+  "The builders wrote this in light, because they knew stone would not survive the silence.",
+  "The Gate sings once each cycle. Seven tones. We answered every time, until the cycle when something answered us.",
+  "It spoke our names back to us. It knew the ones we had not yet given.",
+  "Those who crossed the bridge did not return. Those who returned did not remain themselves.",
+  "If you read this: do not follow the light. Follow the quiet."]}
+};
+function intInside(x,z){
+ const lx=x-COLOSSAL_ROOM.x,lz=z-COLOSSAL_ROOM.z;
+ if(lx>-11.4&&lx<11.4&&lz>-16.4&&lz<16.4)return true;
+ if(Math.abs(lx)<2&&lz<=-16.4&&lz>-27.2)return true;
+ if(lx>-8.7&&lx<8.7&&lz<=-27.2&&lz>-40.7)return true;
+ if(Math.abs(lx)<3.8&&lz>=16.4&&lz<19)return true;
+ return false;
+}
+function collideInterior(pos,r){
+ for(const b of intColl){
+   const cx=Math.max(b.x-b.hx,Math.min(pos.x,b.x+b.hx)),cz=Math.max(b.z-b.hz,Math.min(pos.z,b.z+b.hz));
+   const dx=pos.x-cx,dz=pos.z-cz,d2=dx*dx+dz*dz;
+   if(d2<r*r){
+     if(d2>1e-8){const d=Math.sqrt(d2),k=(r-d)/d;pos.x+=dx*k;pos.z+=dz*k}
+     else{const px=b.hx-Math.abs(pos.x-b.x),pz=b.hz-Math.abs(pos.z-b.z);if(px<pz)pos.x+=(pos.x>=b.x?1:-1)*(px+r);else pos.z+=(pos.z>=b.z?1:-1)*(pz+r)}
+   }
+ }
+}
+function intNearInteract(p){
+ const lx=p.x-COLOSSAL_ROOM.x,lz=p.z-COLOSSAL_ROOM.z;
+ if(Math.hypot(lx+6.5,lz+37.5)<3.4)return "READ SHIP LOG";
+ if(Math.hypot(lx-6.5,lz+37.5)<3.4)return "READ THE CODEX";
+ return null;
+}
+function makeViewTexture(){
+ const [c,g]=mkCanvas(512,160);
+ const gr=g.createLinearGradient(0,0,0,160);gr.addColorStop(0,"#120a24");gr.addColorStop(.55,"#5a2a4a");gr.addColorStop(.75,"#c4684a");gr.addColorStop(1,"#3a1a22");
+ g.fillStyle=gr;g.fillRect(0,0,512,160);
+ g.fillStyle="#fff";for(let i=0;i<60;i++){g.globalAlpha=.3+rand()*.6;g.fillRect(rand()*512,rand()*70,1.5,1.5)}
+ g.globalAlpha=.9;g.fillStyle="#d9c3ff";g.beginPath();g.arc(390,34,16,0,6.3);g.fill();g.fillStyle="#9ad8ff";g.beginPath();g.arc(120,50,8,0,6.3);g.fill();
+ g.globalAlpha=1;g.fillStyle="#2a1220";g.beginPath();g.moveTo(0,160);for(let x=0;x<=512;x+=32)g.lineTo(x,112+Math.sin(x*.03)*10+rand()*8);g.lineTo(512,160);g.fill();
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+function makeSignMesh(text,color,w,h){
+ const [c,g]=mkCanvas(256,64);
+ g.fillStyle="#04060c";g.fillRect(0,0,256,64);g.strokeStyle=color;g.lineWidth=3;g.strokeRect(3,3,250,58);
+ g.fillStyle=color;g.font="bold 26px Arial";g.textAlign="center";g.textBaseline="middle";g.fillText(text,128,34);
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
+ return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:t,toneMapped:false}));
+}
+function createColossalInterior(){
+ const PX=COLOSSAL_ROOM.x,PZ=COLOSSAL_ROOM.z;
+ const g=new THREE.Group();g.position.set(PX,0,PZ);g.visible=false;scene.add(g);intG=g;
+ const hull=makeMat(0x657184,.48,.72),dark=makeMat(0x171f2b,.58,.72),trim=makeMat(0xa8b8cc,.32,.84),floorM=makeMat(0x303b4b,.64,.68);
+ const glass=new THREE.MeshStandardMaterial({color:0x123e55,emissive:0x087b9c,emissiveIntensity:.55,metalness:.65,roughness:.2});
+ const cyan=glow(0x52dcff),purple=glow(0x9b63ff),amber=glow(0xffa45c);
+ const B=(w,h,d)=>new THREE.BoxGeometry(w,h,d);
+ const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.rotation.set(rx,ry,rz);g.add(m);return m};
+ const ic=(x,z,hx,hz)=>intColl.push({x:PX+x,z:PZ+z,hx,hz});
+ const strips=(mat,list)=>{const m=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat,list.length),o=new THREE.Object3D();list.forEach((it,i)=>{o.position.set(it[0],it[1],it[2]);o.scale.set(it[3],it[4],it[5]);o.rotation.set(0,it[6]||0,0);o.updateMatrix();m.setMatrixAt(i,o.matrix)});m.instanceMatrix.needsUpdate=true;m.frustumCulled=false;g.add(m);return m};
+ const sign=(txt,col,x,y,z,ry)=>{const m=makeSignMesh(txt,col,2.6,.65);m.position.set(x,y,z);m.rotation.y=ry||0;g.add(m)};
+
+ /* ---- HANGAR (24 x 34): engineering on the left, cargo on the right, command corridor at the back ---- */
+ add(B(24,.45,34),floorM,0,.05,0);
+ add(B(10,7,.65),hull,-7,3.55,-16.7);add(B(10,7,.65),hull,7,3.55,-16.7);add(B(4,3.4,.65),dark,0,5.3,-16.7);
+ add(B(.65,7,33),hull,-11.7,3.55,0);add(B(.65,7,33),hull,11.7,3.55,0);
+ add(B(8,7,.65),hull,-8,3.55,16.7);add(B(8,7,.65),hull,8,3.55,16.7);add(B(8,2.2,.65),dark,0,5.9,16.7);
+ add(B(24,.3,34),dark,0,7.1,0);
+ ic(-7,-16.7,5,.35);ic(7,-16.7,5,.35);ic(-11.7,0,.35,16.5);ic(11.7,0,.35,16.5);ic(-8,16.7,4,.35);ic(8,16.7,4,.35);
+ const lights=[],ribs=[];
+ for(let i=0;i<5;i++){lights.push([0,6.9,-12+i*6,5,.08,.5]);ribs.push([-11.3,3.5,-14+i*7,.3,6.6,.5]);ribs.push([11.3,3.5,-14+i*7,.3,6.6,.5])}
+ strips(cyan,lights);strips(trim,ribs);
+ add(B(5,.08,28),dark,0,.32,-.2);
+ const rl=[],rp=[];for(let i=0;i<10;i++)(i%2?rl:rp).push([0,.37,-13+i*2.8,4.2,.045,.12]);
+ strips(cyan,rl);strips(purple,rp);
+ strips(cyan,[[-3.9,2.6,16.45,.14,4.8,.14],[3.9,2.6,16.45,.14,4.8,.14],[0,5.1,16.45,7.8,.14,.14]]);
+ sign("HANGAR 02",'#6fe0ff',0,5.6,16.3,Math.PI);sign("ENGINEERING",'#ffa45c',-11.3,4.3,-3,Math.PI/2);sign("CARGO",'#6fe0ff',11.3,4.3,3,-Math.PI/2);sign("BRIDGE >",'#b99cff',0,4.4,-16.3,0);
+ // engineering: power core + crew lockers (one torn open) + scorch from the accident
  add(new THREE.CylinderGeometry(1.5,1.8,3.8,12),dark,-7,2.2,-8);
- add(new THREE.CylinderGeometry(1.08,1.08,.12,16),cyan,-7,4.15,-8);
+ const coreTop=add(new THREE.CylinderGeometry(1.08,1.08,.12,16),cyan,-7,4.15,-8);
  add(new THREE.TorusGeometry(1.35,.09,8,24),purple,-7,2.2,-8).rotation.x=Math.PI/2;
+ ic(-7,-8,1.9,1.9);
  for(let i=0;i<4;i++){
    const px=-8.6+(i%2)*2.2,pz=1.5+Math.floor(i/2)*3.2;
-   add(new THREE.BoxGeometry(1.8,2.5,1.7),dark,px,1.55,pz);
-   add(new THREE.BoxGeometry(1.45,.12,.08),i%2?amber:cyan,px,2.25,pz+.88);
-   add(new THREE.BoxGeometry(.12,1.9,.08),trim,px-.65,1.55,pz+.88);
+   const lk=add(B(1.8,2.5,1.7),dark,px,1.55,pz);if(i===2){lk.rotation.z=.12;lk.position.x-=.2}
+   add(B(1.45,.12,.08),i%2?amber:cyan,px,2.25,pz+.88);add(B(.12,1.9,.08),trim,px-.65,1.55,pz+.88);
+   ic(px,pz,.9,.85);
  }
- // Right-side damaged workbench, cargo crates and a holographic status display.
- add(new THREE.BoxGeometry(5,.9,2.3),dark,7,.75,-7);
- add(new THREE.BoxGeometry(5.2,.16,2.5),trim,7,1.28,-7);
- add(new THREE.BoxGeometry(3.2,1.8,.12),glass,7,2.7,-8.05);
- for(let i=0;i<3;i++) add(new THREE.BoxGeometry(1.15,.85,1.1),i===1?trim:dark,5.4+i*1.5,.85,2.6+(i%2)*1.1,0,i*.12,.04);
- // Rear engine-control dais, consoles, warning lights and a readable beacon.
- add(new THREE.BoxGeometry(10,1.2,3.2),dark,0,.8,-13.1);
- add(new THREE.BoxGeometry(8,.12,2.7),trim,0,1.47,-13.1);
- for(let i=0;i<5;i++){
-   add(new THREE.BoxGeometry(1.15,.08,.55),i%2?cyan:purple,-3.2+i*1.6,1.57,-13.1);
-   add(new THREE.BoxGeometry(.85,.65,.08),glass,-3.2+i*1.6,2.1,-14.25);
- }
- // Damaged ceiling conduits and sparking-looking amber/cyan strips.
- for(let i=0;i<7;i++){
-   add(new THREE.BoxGeometry(2.4,.18,.22),i%2?trim:dark,-9+i*3,5.85,5.4+(i%2)*1.3);
-   add(new THREE.BoxGeometry(1.2,.07,.07),i%2?amber:cyan,-9+i*3,5.72,5.4+(i%2)*1.3);
- }
- g.position.set(x,y,z);scene.add(g);
- // Collectable, non-grinding salvage: touching a floating pickup adds it to the
- // existing inventory using the game's normal collection UI and counters.
+ if(TEX.scorch){const sc=new THREE.Mesh(new THREE.PlaneGeometry(6,5),new THREE.MeshBasicMaterial({map:TEX.scorch,transparent:true,depthWrite:false,opacity:.8}));sc.rotation.x=-Math.PI/2;sc.position.set(-6.5,.4,-6.5);g.add(sc)}
+ // cargo + workshop (right)
+ add(B(5,.9,2.3),dark,7,.75,-7);add(B(5.2,.16,2.5),trim,7,1.28,-7);add(B(3.2,1.8,.12),glass,7,2.7,-8.05);ic(7,-7,2.5,1.15);
+ for(let i=0;i<3;i++){add(B(1.15,.85,1.1),i===1?trim:dark,5.4+i*1.5,.85,2.6+(i%2)*1.1,0,i*.12,.04);ic(5.4+i*1.5,2.6+(i%2)*1.1,.62,.58)}
+ for(let i=0;i<4;i++){const cx=6+(i%2)*1.5,cz=8+Math.floor(i/2)*1.3;add(B(1.3,1.1,1.2),i===2?trim:dark,cx,.9,cz,0,i*.2);ic(cx,cz,.68,.62)}
+ for(let i=0;i<4;i++)add(B(.5,.05,.35),i%2?cyan:amber,-3+i*1.6+rand()*.4,.4,3+rand()*8,0,rand()*3);  // scattered data pads
+ // engine control dais with consoles (reachable by walking around it)
+ add(B(10,1.2,3.2),dark,0,.8,-12.4);add(B(8,.12,2.7),trim,0,1.47,-12.4);ic(0,-12.4,5,1.6);
+ const cons=[],scr=[];for(let i=0;i<5;i++){cons.push([-3.2+i*1.6,1.57,-12.4,1.15,.08,.55,0]);scr.push([-3.2+i*1.6,2.1,-13.55,.85,.65,.08,0])}
+ strips(cyan,cons.filter((_,i)=>i%2));strips(purple,cons.filter((_,i)=>!(i%2)));strips(glass,scr);
+ // damaged conduits
+ const cond=[];for(let i=0;i<7;i++)cond.push([-9+i*3,5.72,5.4+(i%2)*1.3,1.2,.07,.07]);
+ strips(amber,cond.filter((_,i)=>i%2));strips(cyan,cond.filter((_,i)=>!(i%2)));
+ intFX.flick=add(B(2.4,.1,.1),amber,3,6.7,-6);
+ const sp=(x,y,z)=>{const geo=new THREE.BufferGeometry();const pa=new Float32Array(30);for(let i=0;i<10;i++){pa[i*3]=(rand()-.5)*1.2;pa[i*3+1]=rand()*1.2;pa[i*3+2]=(rand()-.5)*1.2}geo.setAttribute("position",new THREE.BufferAttribute(pa,3));const p=new THREE.Points(geo,new THREE.PointsMaterial({color:0xffb060,size:.16,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));p.position.set(x,y,z);p.userData.ph=rand()*6;g.add(p);intFX.sparks.push(p)};
+ sp(-7,4.4,-8);sp(10.8,3.2,-5);
+
+ /* ---- CORRIDOR (4 x 10) ---- */
+ add(B(4.6,.45,10.6),floorM,0,.05,-21.9);add(B(4.6,.3,10.6),dark,0,3.8,-21.9);
+ add(B(.4,3.6,10.4),hull,-2.3,1.95,-21.9);add(B(.4,3.6,10.4),hull,2.3,1.95,-21.9);
+ ic(-2.3,-21.9,.2,5.3);ic(2.3,-21.9,.2,5.3);
+ const cs=[];for(let i=0;i<5;i++)cs.push([0,3.62,-18.5-i*2.1,3.2,.05,.2]);strips(cyan,cs);
+ strips(purple,[[-1.95,.4,-21.9,.1,.05,10],[1.95,.4,-21.9,.1,.05,10]]);
+
+ /* ---- COMMAND BRIDGE (18 x 14) ---- */
+ add(B(18,.45,14),floorM,0,.05,-34);add(B(18,.3,14),dark,0,4.4,-34);
+ add(B(7,5,.5),hull,-5.5,2.45,-27);add(B(7,5,.5),hull,5.5,2.45,-27);add(B(4,1.2,.5),dark,0,4.0,-27);
+ add(B(.5,5,14),hull,-9,2.45,-34);add(B(.5,5,14),hull,9,2.45,-34);
+ add(B(18,.9,.5),hull,0,.5,-41);add(B(18,.9,.5),hull,0,4.0,-41);add(B(2.6,3,.5),hull,-7.7,2.4,-41);add(B(2.6,3,.5),hull,7.7,2.4,-41);
+ ic(-5.5,-27,3.5,.3);ic(5.5,-27,3.5,.3);ic(-9,-34,.3,7);ic(9,-34,.3,7);ic(0,-41,9,.3);
+ // observation window overlooking AURELIS
+ const vt=makeViewTexture();
+ const win=new THREE.Mesh(new THREE.PlaneGeometry(12.6,2.9),new THREE.MeshBasicMaterial({map:vt,toneMapped:false}));win.position.set(0,2.45,-40.7);g.add(win);
+ strips(trim,[[0,3.95,-40.62,12.8,.12,.14],[0,.95,-40.62,12.8,.12,.14],[-6.3,2.45,-40.62,.14,3,.14],[6.3,2.45,-40.62,.14,3,.14]]);
+ // consoles, captain chair, ship-log terminal, ancient codex pedestal
+ const bc=[],bs=[];for(let i=0;i<5;i++){bc.push([-5+i*2.5,.95,-39.6,2.2,1,.9]);bs.push([-5+i*2.5,1.7,-39.9,1.7,.9,.08])}
+ strips(dark,bc);strips(glass,bs);ic(0,-39.6,6.2,.65);
+ add(new THREE.CylinderGeometry(.5,.6,.9,10),dark,0,.8,-36.4);add(B(.9,1.1,.18),dark,0,1.5,-35.9);ic(0,-36.4,.6,.6);
+ add(B(1.3,1.3,.7),dark,-6.5,.95,-37.5);const lg=add(B(1.05,.8,.06),amber,-6.5,1.25,-37.12);lg.rotation.x=-.35;ic(-6.5,-37.5,.75,.5);
+ add(new THREE.CylinderGeometry(.5,.62,1.05,10),dark,6.5,.85,-37.5);
+ const bkL=add(B(.62,.06,.8),makeMat(0x3d3036,.8,.5),6.34,1.42,-37.5,0,0,.14),bkR=add(B(.62,.06,.8),makeMat(0x3d3036,.8,.5),6.66,1.42,-37.5,0,0,-.14);
+ add(B(.9,.02,.5),purple,6.5,1.48,-37.5);ic(6.5,-37.5,.65,.65);
+ add(new THREE.CylinderGeometry(.5,.5,.04,16),purple,6.5,.35,-37.5);
+ sign("COMMAND BRIDGE",'#b99cff',0,4.05,-26.7,Math.PI);sign("SHIP LOG",'#ffa45c',-6.5,2.5,-37.9,0);sign("CODEX",'#b99cff',6.5,2.5,-37.9,0);
+ add(B(1.4,.6,1.1),dark,3.4,.5,-35.5,0,.6,.3);   // overturned chair: the crew left in a hurry
+
+ /* ---- lights (only visible while inside) ---- */
+ const mkL=(c,i,d,x,y,z)=>{const l=new THREE.PointLight(c,i,d,2);l.position.set(PX+x,y,PZ+z);l.visible=false;scene.add(l);intLights.push(l);return l};
+ mkL(0x58d6ff,60,26,0,5.2,2);intFX.amber=mkL(0xff9a48,40,16,-7,3.4,-8);mkL(0x58d6ff,22,11,0,3,-22);mkL(0x9b63ff,45,18,0,3.2,-34);
+
+ /* ---- renewable salvage: each pickup respawns after a short cooldown (see updatePickups) ---- */
  const loot=[
-   ['metal',x-7,z+6],['metal',x-8.8,z+7.6],['metal',x+7.8,z+5.8],
-   ['parts',x+8.4,z+8.2],['parts',x+6.5,z-2.2],['energy',x-7,z-8.2],
-   ['energy',x+1.6,z-11.1],['metal',x+2.7,z+10.4],['parts',x-2.2,z+11.2]
+  ['metal',-7,6],['metal',-8.8,7.6],['metal',7.8,5.8],['parts',8.4,8.2],['parts',6.5,-2.2],['energy',-7,-5],
+  ['energy',1.6,-9.4],['metal',2.7,10.4],['parts',-2.2,11.2],['metal',0,-22],['parts',7,-31],['energy',-7,-31],['metal',0,-31]
  ];
- for(const [type,px,pz] of loot) makePickup(type,px,pz,true);
+ for(const [type,lx,lz] of loot)makePickup(type,PX+lx,PZ+lz,4,INT_FLOOR_Y);
+}
+function setInteriorLighting(on){
+ if(intG)intG.visible=on;
+ for(const l of intLights)l.visible=on;
+ try{sun.visible=!on;if(fillLight)fillLight.visible=!on;if(hemiLight)hemiLight.intensity=on?.8:.9;scene.environmentIntensity=on?.3:.55;if(dust)dust.visible=!on&&!SET.lowfx}catch(e){}
 }
 function enterColossalInterior(){
- inColossalInterior=true;
- player.position.set(COLOSSAL_ROOM.x,terrainHeight(COLOSSAL_ROOM.x,COLOSSAL_ROOM.z),COLOSSAL_ROOM.z+11.8);
- velocityX=velocityZ=velocityY=0; yaw=Math.PI; pitch=.02;
- if(roverMounted)mountRover();
- toast('ABOARD THE COLOSSAL DERELICT',2200);
- speak('HEMTON',['This vessel is much older than our crash ship.','Salvageable metal, energy crystals and components detected.','Collect anything useful, Hemadri.']);
+ if(inColossalInterior||colBusy||inputLocked)return;
+ colBusy=true;inputLocked=true;
+ try{if(roverMounted)mountRover()}catch(e){}
+ fadeThen(()=>{
+   try{
+     inColossalInterior=true;setInteriorLighting(true);
+     player.position.set(COLOSSAL_ROOM.x,INT_FLOOR_Y,COLOSSAL_ROOM.z+14);
+     velocityX=velocityZ=velocityY=0;yaw=0;pitch=.02;
+     toast("ABOARD THE COLOSSAL DERELICT",2200);
+     if(!colIntroDone){colIntroDone=true;speak("HEMTON",["This vessel is far older than our crash ship.","Salvageable metal, energy crystals and components detected.","Check the command bridge. Something is still powered."])}
+   }finally{inputLocked=false;colBusy=false}
+ });
 }
 function exitColossalInterior(){
- inColossalInterior=false;
- player.position.set(COLOSSAL_ENTRY.x,terrainHeight(COLOSSAL_ENTRY.x,COLOSSAL_ENTRY.z),COLOSSAL_ENTRY.z);
- velocityX=velocityZ=velocityY=0; yaw=Math.PI; pitch=.02;
- toast('RETURNED TO AURELIS SURFACE',1800);
+ if(!inColossalInterior||colBusy||inputLocked)return;
+ colBusy=true;inputLocked=true;
+ fadeThen(()=>{
+   try{
+     inColossalInterior=false;setInteriorLighting(false);
+     const w=colossalWorld(0,-21.2);
+     player.position.set(w.x,colossalRampY(w.x,w.z)||terrainHeight(w.x,w.z),w.z);
+     velocityX=velocityZ=velocityY=0;yaw=COL_ROT;pitch=.05;
+     toast("RETURNED TO AURELIS SURFACE",1800);
+   }finally{inputLocked=false;colBusy=false}
+ });
+}
+function openIntLog(act){
+ const L=INT_LOGS[act];if(!L)return;
+ if(act==="READ SHIP LOG")logsSeen.ship=true;else logsSeen.codex=true;
+ logOpen=true;
+ document.getElementById("logTitle").textContent=L.title;
+ document.getElementById("logBody").innerHTML=L.body.map(s=>"<p>"+s+"</p>").join("");
+ document.getElementById("logPanel").style.display="flex";
+ try{blip(520,.2,.08)}catch(e){}
+}
+function closeLog(){
+ if(!logOpen)return;
+ logOpen=false;document.getElementById("logPanel").style.display="none";
+ if(!logsSeen.ship&&!logsSeen.codex)return;
+ if(logsSeen.ship&&!logsSeen.shipTalked){logsSeen.shipTalked=true;speak("HEMTON",["Hemadri... that designation.","Lost signals. Forty-one of them. I do not remember recording them."])}
+ else if(logsSeen.codex&&!logsSeen.codexTalked){logsSeen.codexTalked=true;speak("HEMTON",["The builders knew about the Gate.","And something on the other side knew about them."])}
+}
+function updateColossal(dt,t){
+ for(let i=0;i<colFX.halos.length;i++)colFX.halos[i].scale.setScalar(1+Math.sin(t*3+i)*.07);
+ for(const b of colFX.blink)b.visible=((t*1.1+b.position.x*.05)%1)<.4;
+ for(const s of colFX.smoke){const k=(t*.12+s.userData.ph)%1;s.position.set(s.userData.x+k*1.4,5+k*7,20.2+k*1.5);s.material.opacity=.32*(1-k);const sc=3+k*4;s.scale.set(sc,sc,1)}
+ if(!started)return;
+ const p=player.position;
+ if(inColossalInterior){
+   if(intFX.amber)intFX.amber.intensity=36+Math.sin(t*23)*Math.sin(t*7)*14;
+   if(intFX.flick)intFX.flick.visible=Math.sin(t*31)*Math.sin(t*5.3)>-.2;
+   for(const s of intFX.sparks)s.visible=Math.sin(t*37+s.userData.ph)>.1;
+   if(!colBusy&&!inputLocked&&!logOpen){
+     const lx=p.x-COLOSSAL_ROOM.x,lz=p.z-COLOSSAL_ROOM.z;
+     if(lz>15.8&&Math.abs(lx)<3.8)exitColossalInterior();
+   }
+ }else if(!colBusy&&!inputLocked&&!roverMounted&&!inCave){
+   const q=colossalLocal(p.x,p.z);
+   if(Math.abs(q.lx)<3&&q.lz>-18.8&&q.lz<-17.2&&p.y>COL_PAD_Y+2.5)enterColossalInterior();
+ }
 }
 
 function createShip(){
@@ -1389,11 +1738,16 @@ function collideFacility(pos,r){
  pos.x=facilityBaseX+lx;pos.z=facilityBaseZ+lz;
 }
 function groundHeight(x,z){
+ if(inCave)return caveFloor(x-CAVE_OX,z-CAVE_OZ);
+ if(inColossalInterior)return INT_FLOOR_Y;
+ {const ry=colossalRampY(x,z);if(ry!==null)return ry}
  if(insideShip(x,z))return SHIP_FLOOR_Y;
  if(insideFacility(x,z))return facilityFloorY;
  return terrainHeight(x,z);
 }
 function collideWorld(pos,r){
+ if(inColossalInterior){collideInterior(pos,r);return}
+ collideColossal(pos,r);
  // ship walls and furniture
  const th=ship.rotation.y,c=Math.cos(th),s=Math.sin(th);
  const dx=pos.x-ship.position.x,dz=pos.z-ship.position.z;
@@ -1536,7 +1890,7 @@ function setLink(a,b,t){
 
 /* ---------- resource pickups ---------- */
 const pickups=[];
-function makePickup(type,x,z,infinite=false){
+function makePickup(type,x,z,infinite=false,baseY){
  const cfg=RES[type];
  const g=new THREE.Group();
  if(type==="metal"){
@@ -1557,9 +1911,9 @@ function makePickup(type,x,z,infinite=false){
  const col=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,3.2,6,1,true),glowMat(cfg.color,.4));
  col.position.y=1.6; g.add(col);
 
- const y0=terrainHeight(x,z)+1.0;
+ const y0=(baseY!==undefined?baseY:terrainHeight(x,z))+1.0;
  g.position.set(x,y0,z);
- g.userData={type,y0,ph:rand()*6,infinite,ready:true};
+ g.userData={type,y0,ph:rand()*6,infinite:!!infinite,cool:(typeof infinite==="number"?infinite:4),respawnAt:0,ready:true};
  scene.add(g);
  pickups.push(g);
 }
@@ -1582,7 +1936,7 @@ function spawnPickups(){
      for(const o of solids){if(Math.hypot(x-o.x,z-o.z)<o.r+1.2){okSolid=false;break}}
      if(okShip&&okNova&&okSolid)break;
    }
-   makePickup(list[i],x,z);
+   makePickup(list[i],x,z,25);
  }
 }
 
@@ -1709,13 +2063,14 @@ function collect(g){
    if(!g.userData.ready)return;
    g.userData.ready=false;
    g.visible=false;
-   setTimeout(()=>{g.userData.ready=true;g.visible=true;},900);
+   g.userData.respawnAt=performance.now()+g.userData.cool*1000;
  }else{
    scene.remove(g);
    pickups.splice(pickups.indexOf(g),1);
  }
  inv[t]++;
- toast("+1 "+RES[t].label+(g.userData.infinite?" · INFINITE SALVAGE":""),1100);
+ try{blip(t==="energy"?980:t==="parts"?760:560,.12,.07)}catch(e){}
+ toast("+1 "+RES[t].label+(g.userData.infinite?" · RENEWABLE":""),1100);
  refreshInv(t);
  if(state==="GATHER"&&haveAllNeeded()){
    setState("WORKBENCH");
@@ -1728,8 +2083,20 @@ const nearHemton=()=>insideShip(player.position.x,player.position.z)&&dist2D(pla
 function currentAction(){
  if(busy||speaking||!started)return null;
  const p=player.position;
- if(inColossalInterior){if(dist2D(p,{x:COLOSSAL_ROOM.x,z:COLOSSAL_ROOM.z+11.8})<5)return "EXIT COLOSSAL SHIP";return null;}
- if(dist2D(p,COLOSSAL_ENTRY)<8)return "ENTER COLOSSAL SHIP";
+ if(logOpen)return null;
+ if(inCave){
+   if(nearCrystal())return crystalAction();
+   if(p.z-CAVE_OZ>-6)return "LEAVE THE CAVE";
+   return null;
+ }
+ if(inColossalInterior){
+   const L=intNearInteract(p);if(L)return L;
+   if(p.z-COLOSSAL_ROOM.z>11&&Math.abs(p.x-COLOSSAL_ROOM.x)<5)return "EXIT COLOSSAL SHIP";
+   return null;
+ }
+ if(colossalNearDoor(p))return "ENTER COLOSSAL SHIP";
+ if(caveMouth.x&&dist2D(p,caveMouth)<4.5&&CAVE_STATES.includes(state))return "ENTER THE CAVE";
+ if(workbench&&neutronBuilt&&dist2D(p,workbench.position)<4.5)return oxygenCylinderBuilt?"REFILL OXYGEN CYLINDER":"CRAFT OXYGEN CYLINDER";
  switch(state){
    case "HEMTON": if(nearHemton())return "TALK TO HEMTON";break;
    case "NOVA": if(dist2D(p,nova.position)<5)return "TALK TO NOVA";break;
@@ -1737,7 +2104,7 @@ function currentAction(){
    case "NEUTRON": if(workbench&&dist2D(p,workbench.position)<4.5)return "BUILD NEUTRON";break;
    case "REPAIR": if(dist2D(p,nova.position)<5)return "USE NEUTRON ON NOVA";break;
    case "FOLLOW": if(workbench&&dist2D(p,workbench.position)<4.5)return oxygenCylinderBuilt?"REFILL OXYGEN CYLINDER":"CRAFT OXYGEN CYLINDER"; if(dist2D(p,nova.position)<4)return "TALK TO NOVA";break;
-   case "SIGNAL": if(typeof STRUCT!=="undefined"&&dist2D(p,{x:STRUCT.x,z:STRUCT.z})<30)return "INVESTIGATE THE GATE";break;
+   case "SIGNAL": break;
    case "GATE": if(typeof STRUCT!=="undefined"&&dist2D(p,{x:STRUCT.x,z:STRUCT.z})<42)return "INVESTIGATE THE GATE";break;
    case "RESEARCH": if(researchCenter&&dist2D(p,researchCenter.position)<9)return "SCAN RESEARCH CENTER";break;
  }
@@ -1750,18 +2117,18 @@ function interact(){
  if(busy)return;
  if(roverMounted){mountRover();return;}
  if(rover&&Math.hypot(player.position.x-rover.position.x,player.position.z-rover.position.z)<5){mountRover();return;}
- if(typeof inCave!=="undefined"&&inCave){toast("CAVE AREA DISABLED IN THIS VERSION",1500);return;}
+ if(logOpen){closeLog();return;}
  const act=currentAction();
+ if(act==="COLLECT CRYSTAL"||act==="INSPECT CRYSTAL"){const c=nearCrystal();if(c)useCrystal(c);return;}
+ if(act==="LEAVE THE CAVE"){exitCave();return;}
+ if(act==="ENTER THE CAVE"){enterCave();return;}
+ if(act==="READ SHIP LOG"||act==="READ THE CODEX"){openIntLog(act);return;}
  if(act==="ENTER COLOSSAL SHIP"){enterColossalInterior();return;}
  if(act==="EXIT COLOSSAL SHIP"){exitColossalInterior();return;}
  if(!act){fallbackTalk();return}
  if(act==="CRAFT OXYGEN CYLINDER"||act==="REFILL OXYGEN CYLINDER"){craftOxygenCylinder();return;}
  if(act==="INVESTIGATE THE GATE"){
-   gateKnown=true;
-   if(!researchCenter)createResearchCenter();
-   setState("RESEARCH");
-   neutron("RESEARCH CENTER DETECTED","FOLLOW THE SIGNAL TO THE RESEARCH CENTER");
-   speak("HEMTON",["Gate scan complete.","This structure is transmitting a signal from a research facility nearby.","Follow the waypoint, Hemadri."]);
+   gateReunion();
    return;
  }
  if(act==="SCAN RESEARCH CENTER"){
@@ -1793,8 +2160,8 @@ function interact(){
  }else if(state==="FOLLOW"){
    facePlayer();
    speak("NOVA",["Scanner is online.","Let's survey the open desert.","There may be more salvage beyond the wreckage."],()=>{
-     setState("GATE");gateKnown=true;
-     if(typeof neutron==="function")neutron("UNKNOWN STRUCTURE DETECTED","FOLLOW THE SIGNAL ACROSS THE DESERT");
+     setState("CAVE_ENTRY");
+     speak("HEMTON",["Hemadri. NEUTRON is picking up a signal beneath the surface.","A cave entrance lies out in the desert. Follow the waypoint."],()=>neutron("ENTER THE CAVE","FOLLOW THE SIGNAL TO THE CAVE"));
    });
  }
 }
@@ -1927,7 +2294,7 @@ function getWaypoint(){
    case "GATHER":{
      let best=null,bd=1e9;
      for(const g of pickups){
-       if(inv[g.userData.type]>=NEED[g.userData.type])continue;
+       if(inv[g.userData.type]>=NEED[g.userData.type]||g.userData.ready===false||Math.abs(g.position.x)>300||Math.abs(g.position.z)>300)continue;
        const d=dist2D(player.position,g.position);
        if(d<bd){bd=d;best=g}
      }
@@ -1940,7 +2307,7 @@ function getWaypoint(){
    case "NEUTRON": return workbench?{pos:workbench.position,name:"WORKBENCH",txt:"GO TO THE WORKBENCH",css:"#b99cff",col:0xa070ff,lift:3}:null;
    case "REPAIR": return {pos:nova.position,name:"NOVA",txt:"BRING THE NEUTRON TO NOVA",css:"#7fe3ff",col:0x6fe0ff,lift:3};
    case "FOLLOW": return {pos:null,txt:"NOVA IS NOW YOUR COMPANION • EXPLORE AURELIS",noDist:true};
-   case "SIGNAL": return {pos:{x:STRUCT.x,z:STRUCT.z},name:"THE GATE",txt:"FOLLOW THE SIGNAL TO THE GATE",css:"#b99cff",col:0xa070ff,lift:14};
+   case "SIGNAL": case "CAVE_ENTRY": return chapter1Waypoint();
    case "GATE": return chapter1Waypoint();
    case "RESEARCH": return researchCenter?{pos:researchCenter.position,name:"RESEARCH CENTER",txt:"FOLLOW THE SIGNAL TO THE RESEARCH CENTER",css:"#35e0ff",col:0x35e0ff,lift:5}:null;
  }
@@ -2091,7 +2458,7 @@ function initAudio(){
  }catch(e){actx=null}
 }
 function blip(f=880,d=.1,vol=.1){
- if(!actx)return;
+ if(!actx||SET.mute)return;
  try{
    const o=actx.createOscillator(),g=actx.createGain(),t=actx.currentTime;
    o.type="sine";o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*1.8,t+d);
@@ -2100,7 +2467,7 @@ function blip(f=880,d=.1,vol=.1){
  }catch(e){}
 }
 function hum(dur,freq=40,vol=.25){
- if(!actx)return;
+ if(!actx||SET.mute)return;
  try{
    const t=actx.currentTime,g=actx.createGain();
    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+dur*.5);g.gain.linearRampToValueAtTime(0,t+dur);
@@ -2856,7 +3223,7 @@ function respawnAtResearchCenter(){
  toast("OXYGEN DEPLETED • RETURNING TO RESEARCH CENTER",2800);
  setTimeout(()=>{
    if(!researchCenter)createResearchCenter();
-   inCave=false;try{setCaveLighting(false)}catch(e){}
+   inCave=false;try{setCaveLighting(false)}catch(e){}if(inColossalInterior){inColossalInterior=false;try{setInteriorLighting(false)}catch(e){}}
    const x=researchCenterPos.x+0,z=researchCenterPos.z+9;
    player.position.set(x,terrainHeight(x,z),z);velocityX=velocityZ=velocityY=0;yaw=Math.PI;pitch=.08;
    oxygenLevel=100;oxygenTick=0;window._oxyWarn20=false;window._oxyWarn10=false;
@@ -3269,7 +3636,7 @@ function enterCave(){
      nova.position.set(CAVE_OX+1.3,caveFloor(1.3,-3)+.65,CAVE_OZ-3);
      nova.rotation.y=0;novaScript=null;try{nova.visible=true}catch(e){}
    }
-   if(state==="CAVE_ENTRY"){setState("CAVE");toast("THE CAVE",1800)}
+   if(state==="CAVE_ENTRY"||state==="SIGNAL"){setState("CAVE");toast("THE CAVE",1800);setSub("FOLLOW THE CRYSTAL LIGHT • THE SIGNAL IS AHEAD")}
    inputLocked=false;
  });
 }
@@ -3360,6 +3727,117 @@ function updateCaveFX(dt,t){
 /* ============================================================
    SETUP
    ============================================================ */
+
+/* ---------- surface cave entrance (v0.6): the cave had no way in from the world ---------- */
+function createCaveMouth(){
+ const cands=[[-120,-62],[-96,-104],[-150,-18],[104,-118],[-58,-136],[40,-150],[-170,-100]];
+ const keepOut=[[-108,58],[-66,84],[0,-5],[168,132],[118,42],[72,-78],[-62,88],[70,42],[34,22],[24,-8]];
+ let pick=cands[0];
+ for(const c of cands){
+   let ok=true;
+   for(const o of solids){if(Math.hypot(c[0]-o.x,c[1]-o.z)<o.r+9){ok=false;break}}
+   for(const q of keepOut){if(Math.hypot(c[0]-q[0],c[1]-q[1])<35)ok=false}
+   if(ok){pick=c;break}
+ }
+ const X=pick[0],Z=pick[1];
+ const g=new THREE.Group();g.position.set(X,0,Z);scene.add(g);
+ const rockMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0,flatShading:true});
+ const rock=(lx,lz,size,sx,sy,sz,ry,yoff)=>{
+   const m=new THREE.Mesh(rockGeo(size),rockMat);
+   m.position.set(lx,terrainHeight(X+lx,Z+lz)+yoff,lz);m.scale.set(sx,sy,sz);m.rotation.set(0,ry,0);
+   m.castShadow=true;m.receiveShadow=true;g.add(m);return m;
+ };
+ rock(0,-5.6,3.0,1,2.2,1,.3,4.0);          // left pillar
+ rock(0,5.6,3.1,1,2.1,1,1.3,3.9);          // right pillar
+ rock(-.6,0,3.6,1,.55,1.9,.4,7.4);         // lintel across the opening
+ rock(-6.4,0,6.0,1,1.5,1,.6,4.2);          // mass behind the entrance
+ rock(2.5,-9.5,1.6,1,1,1,.2,.4);rock(3.5,9.2,1.4,1,1,1,.8,.3);rock(-2,-10,2.2,1,1.2,1,1.1,.7);rock(-2,10.4,2.0,1,1.2,1,.5,.6);
+ solids.push({x:X,z:Z-5.6,r:3.0},{x:X,z:Z+5.6,r:3.0},{x:X-6.3,z:Z,r:5.2},{x:X-2,z:Z-10,r:2.1},{x:X-2,z:Z+10.4,r:1.9});
+ // black opening + faint glow so it reads as a way in
+ const y0=terrainHeight(X,Z);
+ const void_=new THREE.Mesh(new THREE.PlaneGeometry(5.2,5.2),new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide}));
+ void_.position.set(-.15,y0+2.6,0);void_.rotation.y=Math.PI/2;g.add(void_);
+ const vg=new THREE.Mesh(new THREE.PlaneGeometry(5.2,5.2),glowMat(0x6fe0ff,.1));vg.position.set(-.05,y0+2.6,0);vg.rotation.y=Math.PI/2;g.add(vg);
+ // crystals that mark the entrance
+ const cm=caveFX.crystalMat;
+ for(const [lx,lz,s] of [[1.2,-3.4,1.2],[1.8,3.3,1.5],[.5,-2.6,.7],[2.4,2.5,.8],[3.5,-1.2,.6]]){
+   const c=new THREE.Mesh(new THREE.ConeGeometry(.3*s,1.8*s,6),cm);
+   c.position.set(lx,terrainHeight(X+lx,Z+lz)+.8*s,lz);c.rotation.set((lz>0?.2:-.2),lx,.15);g.add(c);
+ }
+ if(TEX.smoke){for(const lz of [-3,3]){const h=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.smoke,color:0x4fc8ff,transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false}));h.scale.set(4,4,1);h.position.set(1.8,y0+1.2,lz);g.add(h)}}
+ if(typeof glyphMat!=="undefined"&&glyphMat){const gl=new THREE.Mesh(new THREE.PlaneGeometry(4.6,1.2),glyphMat);gl.position.set(1.1,y0+6.2,0);gl.rotation.y=Math.PI/2;g.add(gl)}
+ // tall, faint beam so the entrance can be spotted from far away
+ const beam=new THREE.Mesh(new THREE.CylinderGeometry(.12,1.6,30,14,1,true),new THREE.MeshBasicMaterial({color:0x6fe0ff,transparent:true,opacity:.1,side:THREE.DoubleSide,depthWrite:false}));
+ beam.position.set(1,y0+16,0);g.add(beam);
+ caveSite.rot=0;caveMouth.x=X+1.2;caveMouth.z=Z;
+}
+
+function crystalAction(){return (state==="CRYSTALS"||ORDER.indexOf(state)>ORDER.indexOf("SURFACE"))?"COLLECT CRYSTAL":"INSPECT CRYSTAL"}
+function useCrystal(c){
+ if(crystalAction()==="COLLECT CRYSTAL"){collectCrystal(c);return}
+ toast("UNSTABLE CRYSTALLINE ENERGY",1800);
+ setSub("NEUTRON: ANOMALOUS ENERGY SIGNATURE - NOT SAFE TO HANDLE YET");
+ try{blip(420,.2,.07)}catch(e){}
+}
+
+/* ===== NEXUS V0.6: settings UI, effects switch, gate reunion ===== */
+function applyFx(){
+ try{
+   if(dust)dust.visible=!SET.lowfx&&!inColossalInterior;
+   if(sun)sun.castShadow=!SET.lowfx;
+   renderer.setPixelRatio(SET.lowfx?1:Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);
+ }catch(e){}
+}
+function setupExtras(){
+ const $=id=>document.getElementById(id);
+ const panel=$("setPanel");
+ const sync=()=>{$("sensVal").textContent=Math.round(SET.sens*100)+"%";$("invBtn").textContent=SET.invert?"ON":"OFF";$("muteBtn").textContent=SET.mute?"MUTED":"ON";$("fxBtn").textContent=SET.lowfx?"ON":"OFF"};
+ const tap=(id,fn)=>$(id).addEventListener("click",e=>{e.preventDefault();e.stopPropagation();fn()});
+ tap("setBtn",()=>{sync();panel.style.display="flex"});
+ tap("setClose",()=>{panel.style.display="none";saveSettings()});
+ tap("sensDn",()=>{SET.sens=Math.max(.4,Math.round((SET.sens-.1)*10)/10);sync();saveSettings()});
+ tap("sensUp",()=>{SET.sens=Math.min(2,Math.round((SET.sens+.1)*10)/10);sync();saveSettings()});
+ tap("invBtn",()=>{SET.invert=!SET.invert;sync();saveSettings()});
+ tap("muteBtn",()=>{SET.mute=!SET.mute;sync();saveSettings()});
+ tap("fxBtn",()=>{SET.lowfx=!SET.lowfx;applyFx();sync();saveSettings()});
+ tap("logClose",closeLog);
+ $("logPanel").addEventListener("click",e=>{if(e.target.id==="logPanel")closeLog()});
+ panel.addEventListener("click",e=>{if(e.target===panel){panel.style.display="none";saveSettings()}});
+ $("boostBtn").addEventListener("pointerdown",e=>{e.preventDefault();tryBoost()});
+ sync();
+ if(SET.lowfx)applyFx();
+}
+let gateReunionDone=false;
+function gateReunion(){
+ if(gateReunionDone)return;
+ gateReunionDone=true;gateKnown=true;busy=true;
+ const finish=()=>{
+   if(!researchCenter)createResearchCenter();
+   setState("RESEARCH");
+   neutron("RESEARCH CENTER DETECTED","FOLLOW THE SIGNAL TO THE RESEARCH CENTER");
+   busy=false;
+ };
+ speak("HEMTON",["Hemadri... the gate is resonating.","I am detecting a signal pattern I have seen before."],()=>{
+   try{flashEl.style.opacity="1"}catch(e){}
+   try{hum(.8,60,.25)}catch(e){}
+   setTimeout(()=>{
+     try{flashEl.style.opacity="0"}catch(e){}
+     const gx=(gate.novaPt&&(gate.novaPt.x||gate.novaPt.z))?gate.novaPt.x:player.position.x+Math.sin(yaw)*-4;
+     const gz=(gate.novaPt&&(gate.novaPt.x||gate.novaPt.z))?gate.novaPt.z:player.position.z+Math.cos(yaw)*-4;
+     novaLostInCave=false;novaMode="online";
+     nova.position.set(gx,terrainHeight(gx,gz)+.65,gz);nova.visible=true;
+     speak("NOVA",["Hemadri?","...I don't remember leaving."],()=>{
+       if(neutronPct<41){
+         neutronPct=41;
+         try{syncVal.textContent="41%";syncFill.style.width="41%";syncEl.style.display="block";setTimeout(()=>{syncEl.style.display="none"},2600)}catch(e){}
+         toast("NEUTRON SYNCHRONIZATION 41%",2200);
+       }
+       speak("HEMTON",["NEUTRON synchronization has increased.","I'm detecting a research facility nearby.","Follow the waypoint, Hemadri."],finish);
+     });
+   },600);
+ });
+}
+
 function setup(){
  scene=new THREE.Scene();
  scene.background=new THREE.Color(0x1a0d16);
@@ -3391,6 +3869,7 @@ function setup(){
  createBeacon();
  createSites();
  createCave();
+ createCaveMouth();
  spawnPickups();
  buildInv();
  refreshInv();
@@ -3408,6 +3887,7 @@ function setup(){
  setupJoystick();
  setupLook();
  setupButtons();
+ setupExtras();
  animate();
 }
 
@@ -3467,8 +3947,8 @@ function setupLook(){
    if(e.pointerId!==lookId)return;
    const dx=e.clientX-lastLookX,dy=e.clientY-lastLookY;
    lastLookX=e.clientX; lastLookY=e.clientY;
-   yaw-=dx*.006;
-   pitch-=dy*.004;
+   yaw-=dx*.006*SET.sens;
+   pitch-=dy*.004*SET.sens*(SET.invert?-1:1);
    pitch=THREE.MathUtils.clamp(pitch,-.75,.8);
  });
  lookArea.addEventListener("pointerup",e=>{if(e.pointerId===lookId)lookId=null});
@@ -3505,6 +3985,7 @@ function updatePlayer(dt){
  if(keys.KeyW)iz+=1;
  if(keys.KeyS)iz-=1;
 
+ if(inputLocked||logOpen){ix=0;iz=0}
  const len=Math.hypot(ix,iz);
  if(len>1){ix/=len;iz/=len}
 
@@ -3519,9 +4000,10 @@ function updatePlayer(dt){
  velocityZ+=(targetZ-velocityZ)*smooth;
 
  const p=player.position;
- p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,-450,450);
- p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,-450,450);
- collideWorld(p,.42);
+ const ox=p.x,oz=p.z,BND=(inCave||inColossalInterior)?800:WORLD_B;
+ p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,-BND,BND);
+ p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,-BND,BND);
+ if(inCave){caveConstrain(p,ox,oz,.42);collideCave(p,.42)}else collideWorld(p,.42);
 
  // gravity and jump
  velocityY-=22*dt;
@@ -3565,6 +4047,11 @@ function updateCamera(){
        : terrainHeight(camera.position.x,camera.position.z)+.5;
      if(camera.position.y<minY)camera.position.y=minY;
    }
+   if(inColossalInterior){
+     const cx=camera.position.x-target.x,cy=camera.position.y-target.y,cz=camera.position.z-target.z;
+     let k=1;while(k>.1&&!intInside(target.x+cx*k,target.z+cz*k))k-=.1;
+     camera.position.set(target.x+cx*k,Math.min(Math.max(target.y+cy*k,INT_FLOOR_Y+.3),6.6),target.z+cz*k);
+   }
    camera.lookAt(target);
  }else{
    camera.position.set(p.x,p.y+1.62,p.z);
@@ -3576,11 +4063,17 @@ function updateCamera(){
 }
 
 function updatePickups(dt,t){
+ const now=performance.now();
  for(let i=pickups.length-1;i>=0;i--){
-   const g=pickups[i];
+   const g=pickups[i],u=g.userData;
+   if(!u.ready){
+     // renewable: comes back after the cooldown, once the player has stepped away (no repeat grants while standing on it)
+     if(now>=u.respawnAt&&dist2D(player.position,g.position)>3.2){u.ready=true;g.visible=true}
+     continue;
+   }
    g.rotation.y+=dt*1.6;
-   g.position.y=g.userData.y0+Math.sin(t*2.2+g.userData.ph)*.14;
-   if(g.userData.ready && dist2D(player.position,g.position)<2.1)collect(g);
+   g.position.y=u.y0+Math.sin(t*2.2+u.ph)*.14;
+   if(dist2D(player.position,g.position)<2.1)collect(g);
  }
 }
 
@@ -3609,7 +4102,7 @@ function updateNova(dt,t){
    step=speed*dt;
    nova.position.x+=dx/d*step;
    nova.position.z+=dz/d*step;
-   collideWorld(nova.position,.65);
+   collideAny(nova.position,.65,nx,nz);
  }
  nova.rotation.y=lerpAngle(nova.rotation.y,Math.atan2(dx,dz),1-Math.pow(.0008,dt));
  nova.rotation.z*=Math.pow(.001,dt);
@@ -3692,6 +4185,8 @@ function animate(){
    updatePickups(dt,t);
    updateNova(dt,t);
    updateShipFX(dt,t);
+   updateColossal(dt,t);
+   updateRoverFX(dt,t);
    updateFacilityDoor(dt);
    updateCamera();
    updateWorldFX(dt);
