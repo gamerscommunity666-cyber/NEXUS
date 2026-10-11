@@ -129,6 +129,12 @@ canvas{display:block;position:fixed;inset:0}
   NEUTRON SYNCHRONIZATION <b id="syncVal">23%</b><div style="height:6px;margin-top:8px;background:rgba(255,255,255,.15);border-radius:4px;overflow:hidden"><i style="display:block;width:23%;height:100%;background:linear-gradient(90deg,#8a4dff,#6fe0ff)"></i></div>
 </div>
 <div id="cut" style="position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:95;transition:opacity .5s"></div>
+<div id="chapterTitle" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:radial-gradient(ellipse at center,rgba(22,15,43,.78),rgba(0,0,0,.15) 68%,transparent);color:#fff;opacity:0;pointer-events:none;z-index:96;transition:opacity 1s;text-align:center;letter-spacing:.22em;text-shadow:0 0 24px #9d72ff">
+ <div style="font-size:clamp(12px,2vw,18px);color:#c6a7ff;letter-spacing:.38em">AURELIS • NEXUS</div>
+ <div style="font-size:clamp(28px,6vw,58px);font-weight:800;letter-spacing:.18em">CHAPTER 1</div>
+ <div style="font-size:clamp(20px,4vw,38px);font-weight:600;letter-spacing:.24em;color:#a7e8ff">THE BEGINNING</div>
+ <div style="font-size:clamp(10px,1.6vw,14px);letter-spacing:.12em;color:#ddd;margin-top:8px">THE JOURNEY ACROSS AURELIS BEGINS</div>
+</div>
 
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
@@ -140,6 +146,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.m
 
 let scene,camera,renderer,clock;
 let player,ship,nova,terrain;
+let rover=null,roverMounted=false,roverSpeed=0,roverFuel=100,chapterShown=false;
 let novaBall,novaSensor,novaEyeMat;
 let workbench=null,neutronDevice=null;
 let beamG,beamMat,linkBeam;
@@ -628,6 +635,58 @@ function createTerrain(){
 /* ============================================================
    ASTRONAUT
    ============================================================ */
+function createRover(){
+ if(rover)return rover;
+ rover=new THREE.Group();
+ const hull=new THREE.MeshStandardMaterial({color:0x394454,metalness:.78,roughness:.34});
+ const edge=new THREE.MeshStandardMaterial({color:0xa7b7ce,metalness:.9,roughness:.25});
+ const dark=new THREE.MeshStandardMaterial({color:0x111722,metalness:.35,roughness:.65});
+ const glass=new THREE.MeshStandardMaterial({color:0x4bdcff,emissive:0x08718b,emissiveIntensity:.8,metalness:.6,roughness:.18});
+ const glowMat=new THREE.MeshStandardMaterial({color:0x8c58ff,emissive:0x6b20ff,emissiveIntensity:1.5});
+ const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;rover.add(m);return m};
+ add(new THREE.BoxGeometry(2.25,.48,3.1),hull,0,.75,0);
+ add(new THREE.BoxGeometry(1.55,.55,1.25),hull,0,1.15,-.25);
+ add(new THREE.BoxGeometry(1.35,.34,.12),glass,0,1.35,.39);
+ add(new THREE.BoxGeometry(1.9,.08,2.65),edge,0,1.02,0);
+ add(new THREE.BoxGeometry(.5,.12,.18),glowMat,-.65,.65,1.57);add(new THREE.BoxGeometry(.5,.12,.18),glowMat,.65,.65,1.57);
+ add(new THREE.BoxGeometry(.55,.12,.18),glass,-.65,.65,-1.57);add(new THREE.BoxGeometry(.55,.12,.18),glass,.65,.65,-1.57);
+ const wheelGeo=new THREE.CylinderGeometry(.42,.42,.28,18);
+ for(const x of [-1.08,1.08])for(const z of [-1.02,1.02]){const w=add(wheelGeo,dark,x,.42,z);w.rotation.z=Math.PI/2;const hub=add(new THREE.CylinderGeometry(.18,.18,.3,12),edge,x,.42,z);hub.rotation.z=Math.PI/2;}
+ // energy crystal fuel cell
+ add(new THREE.OctahedronGeometry(.23,0),glowMat,0,1.55,-.65);
+ const gy=terrainHeight(RC_CENTER_X+9,RC_CENTER_Z+17);
+ rover.position.set(RC_CENTER_X+9,gy,RC_CENTER_Z+17);
+ scene.add(rover);return rover;
+}
+function showChapterTitle(){
+ if(chapterShown)return;chapterShown=true;
+ const el=document.getElementById('chapterTitle');el.style.opacity='1';
+ setTimeout(()=>{el.style.opacity='0';},3600);
+ setTimeout(()=>{el.style.display='none';},4700);
+}
+function mountRover(){
+ if(!rover)createRover();
+ if(roverMounted){roverMounted=false;player.visible=true;player.position.set(rover.position.x,groundHeight(rover.position.x,rover.position.z),rover.position.z-3.2);velocityX=velocityZ=roverSpeed=0;toast('EXITED ROVER',1400);return;}
+ const d=Math.hypot(player.position.x-rover.position.x,player.position.z-rover.position.z);
+ if(d>5){toast('MOVE CLOSER TO THE ROVER',1500);return;}
+ roverMounted=true;player.visible=false;player.position.set(rover.position.x,groundHeight(rover.position.x,rover.position.z),rover.position.z);velocityX=velocityZ=velocityY=roverSpeed=0;yaw=rover.rotation.y;thirdPerson=true;toast('ROVER ONLINE • W/A/S/D OR JOYSTICK TO DRIVE • USE TO EXIT',2600);
+}
+function updateRover(dt){
+ if(!roverMounted||!rover)return;
+ let steer=joyX,throttle=joyY;
+ if(keys.KeyA)steer-=1;if(keys.KeyD)steer+=1;if(keys.KeyW)throttle+=1;if(keys.KeyS)throttle-=1;
+ steer=THREE.MathUtils.clamp(steer,-1,1);throttle=THREE.MathUtils.clamp(throttle,-1,1);
+ if(Math.abs(throttle)>.12&&!chapterShown)showChapterTitle();
+ roverSpeed+=(throttle*10-roverSpeed)*(1-Math.pow(.02,dt));
+ rover.rotation.y-=steer*dt*(.9+Math.abs(roverSpeed)*.055);
+ const nx=rover.position.x-Math.sin(rover.rotation.y)*roverSpeed*dt;
+ const nz=rover.position.z-Math.cos(rover.rotation.y)*roverSpeed*dt;
+ rover.position.x=THREE.MathUtils.clamp(nx,-450,450);rover.position.z=THREE.MathUtils.clamp(nz,-450,450);
+ rover.position.y=groundHeight(rover.position.x,rover.position.z);
+ player.position.set(rover.position.x,rover.position.y,rover.position.z);
+ player.rotation.y=rover.rotation.y;yaw=rover.rotation.y;
+}
+
 function createPlayer(){
  player=new THREE.Group();
  const suit=new THREE.MeshStandardMaterial({color:0xeeece6,roughness:.68,metalness:.04});
@@ -1538,6 +1597,8 @@ function interact(){
  if(!started)return;
  if(speaking){if(dlgSkip)dlgSkip();return}
  if(busy)return;
+ if(roverMounted){mountRover();return;}
+ if(rover&&Math.hypot(player.position.x-rover.position.x,player.position.z-rover.position.z)<5){mountRover();return;}
  if(typeof inCave!=="undefined"&&inCave){toast("CAVE AREA DISABLED IN THIS VERSION",1500);return;}
  const act=currentAction();
  if(!act){fallbackTalk();return}
@@ -3168,6 +3229,7 @@ function setup(){
  createTerrain();
  createWorldStructures();
  createResearchCenter();
+ createRover();
  createNova();
  createShip();
  createPlayer();
@@ -3277,7 +3339,7 @@ function setupButtons(){
  });
  document.getElementById("camBtn").addEventListener("pointerdown",e=>{e.preventDefault();toggleCam()});
  document.getElementById("useBtn").addEventListener("pointerdown",e=>{e.preventDefault();interact()});
- document.getElementById("jumpBtn").addEventListener("pointerdown",e=>{e.preventDefault();jump()});
+ document.getElementById("jumpBtn").addEventListener("pointerdown",e=>{e.preventDefault();if(!roverMounted)jump()});
 }
 
 /* ---------- per-frame updates ---------- */
@@ -3305,7 +3367,7 @@ function updatePlayer(dt){
  p.x=THREE.MathUtils.clamp(p.x+velocityX*dt,-450,450);
  p.z=THREE.MathUtils.clamp(p.z+velocityZ*dt,-450,450);
  collideWorld(p,.42);
-if(!window._dbg||performance.now()-window._dbg>1000){window._dbg=performance.now();document.getElementById("status").textContent="x="+p.x.toFixed(1)+" z="+p.z.toFixed(1)+" y="+p.y.toFixed(2);}
+
  // gravity and jump
  velocityY-=22*dt;
  p.y+=velocityY*dt;
@@ -3326,7 +3388,7 @@ if(!window._dbg||performance.now()-window._dbg>1000){window._dbg=performance.now
 function updateCamera(){
  const p=player.position;
  const inShip=insideShip(p.x,p.z);
- player.visible=thirdPerson;
+ player.visible=thirdPerson&&!roverMounted;
 
  if(thirdPerson){
    const target=new THREE.Vector3(p.x,p.y+1.55,p.z);
@@ -3406,6 +3468,8 @@ function updateNova(dt,t){
 }
 
 function updatePrompt(){
+ if(roverMounted){promptEl.textContent="USE • EXIT ROVER";promptEl.style.display="block";return;}
+ if(rover&&Math.hypot(player.position.x-rover.position.x,player.position.z-rover.position.z)<5){promptEl.textContent="USE • DRIVE ROVER";promptEl.style.display="block";return;}
  const a=currentAction();
  if(a){
    const txt="USE • "+a;
@@ -3466,7 +3530,8 @@ function animate(){
  const dt=Math.min(clock.getDelta(),.05);
  const t=performance.now()*.001;
  if(started){
-   updatePlayer(dt);
+   if(!roverMounted)updatePlayer(dt);
+   else updateRover(dt);
    updateOxygen(dt);
    updateTweens(dt);
    updatePickups(dt,t);
