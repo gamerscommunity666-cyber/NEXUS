@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#050309">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>NEXUS — AURELIS (v1.3.2 structure-entry fix candidate)</title>
+<title>NEXUS — AURELIS (v1.3.5 Emerald Expanse candidate)</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050309;color:#fff;font-family:Arial,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -293,16 +293,60 @@ function rpPlateauH(x,z){
 /* V1.2 (Chapter 2 phase 2): flat build pad for the mysterious structure, blended into the plateau (flat to 46, blended out to 68) */
 const MYST_X=372,MYST_Z=-40,MYST_PAD_IN=46,MYST_PAD_OUT=68;
 const MYST_PAD_Y=(()=>{const h=rawH(MYST_X,MYST_Z),t=smoothstep(RP_X0,RP_X0+RP_BLEND,MYST_X);return h+(rpPlateauH(MYST_X,MYST_Z)-h)*t-.05})();
+/* V1.4 (Echo Spire): flat build pad for the Echo Spire megastructure, 190 m south of the mysterious structure (pads never overlap). */
+const SPIRE_X=372,SPIRE_Z=150,SPIRE_PAD_IN=70,SPIRE_PAD_OUT=100,SPIRE_CLEAR=96;
+const SPIRE_PAD_Y=(()=>{const h=rawH(SPIRE_X,SPIRE_Z),t=smoothstep(RP_X0,RP_X0+RP_BLEND,SPIRE_X);return h+(rpPlateauH(SPIRE_X,SPIRE_Z)-h)*t-.05})();
+/* ===== v13.5 THE EMERALD EXPANSE — terrain shaping + ground tint (data/functions only; geometry is built in createEmeraldExpanse) =====
+   Centre (-5,-165): north of the crash site on the original terrain mesh, clear of the crash site, Research Center, Gate, caves, ruins,
+   the colossal ship, the mysterious structure and the Echo Spire (all >130 m away). Radius 74 m. Terrain edits fade to exactly 0 at the rim. */
+const EM={x:-5,z:-165,R:74,pool:{x:-12,z:-158,r:11},entry:{x:45,z:-155},built:false,off:false,root:null,
+ trees:[],fruits:[],fruitTrees:[],lastCollect:-1e9,activated:false,entered:false,fogOn:false,poolY:0,fdirty:false,
+ test:(location.search.match(/[?&]emerald=1/)?"1":null),testDone:false};
+const EM_STREAM=[[-3,-157],[8,-153],[20,-146],[26,-134],[36,-126],[46,-124],[52,-122]];
+const EM_VOLC=new THREE.Color(.36,.28,.36),EM_GRASS=new THREE.Color(.2,.64,.3),EM_MOSS=new THREE.Color(.06,.52,.42),EM_TMP=new THREE.Color();
+function emStreamD(x,z){
+ let m=1e9;
+ for(let i=0;i<EM_STREAM.length-1;i++){
+   const a=EM_STREAM[i],b=EM_STREAM[i+1],abx=b[0]-a[0],abz=b[1]-a[1];
+   const t=Math.max(0,Math.min(1,((x-a[0])*abx+(z-a[1])*abz)/(abx*abx+abz*abz)));
+   const d=Math.hypot(x-a[0]-abx*t,z-a[1]-abz*t);if(d<m)m=d;
+ }
+ return m;
+}
+function emDelta(x,z,h){
+ const d=Math.hypot(x-EM.x,z-EM.z);
+ if(d>=EM.R)return 0;
+ const w=smoothstep(EM.R,EM.R-30,d),dp=Math.hypot(x-EM.pool.x,z-EM.pool.z);
+ let n=(fbm(x*.011+300,z*.011+300,100000,3,53)-.5)*10+(vnoise(x*.055,z*.055,100000,57)-.5)*1.5;   // shallow valleys and low hills
+ const q=z-EM.z+52;n+=Math.exp(-(q*q)/72)*(.55+.9*vnoise(x*.03,z*.03,100000,59))*9;                  // cliff line along the north side
+ let t=h+n*smoothstep(7,20,dp);
+ const fl=1-smoothstep(10,22,dp);t=t*(1-fl)+rawH(EM.pool.x,EM.pool.z)*fl;                             // level shore around the pool
+ t-=1.9*(1-smoothstep(5,15,dp));                                                                       // pool basin
+ t-=.9*(1-smoothstep(1.6,5.5,emStreamD(x,z)));                                                         // stream trough
+ return (t-h)*w;
+}
+function emEdge(x,z){const d=Math.hypot(x-EM.x,z-EM.z);return d>=EM.R+26?0:smoothstep(EM.R+26,EM.R-20,d)}
+function emGreen(x,z){
+ const e=emEdge(x,z);if(e<=0)return 0;
+ const pn=vnoise(x*.05+7,z*.05+9,100000,61),pm=vnoise(x*.13,z*.13,100000,63);
+ return e*smoothstep(.34,.58,pn*.7+pm*.3+.2*e);
+}
+function emTint(c,wx,wz,slope){      // vertex-colour blend used by createTerrain: dark volcanic ground + emerald grass/moss patches
+ const e=emEdge(wx,wz);if(e<=0)return;
+ c.lerp(EM_VOLC,.55*e);
+ const g=emGreen(wx,wz)*(1-Math.min(1,slope*2.2));
+ if(g>0){EM_TMP.copy(EM_GRASS).lerp(EM_MOSS,vnoise(wx*.09+3,wz*.09+5,100000,65));c.lerp(EM_TMP,g*.9)}
+}
 function terrainHeight(wx,wz){
  let h=rawH(wx,wz);
- if(wx>RP_X0){const t=smoothstep(RP_X0,RP_X0+RP_BLEND,wx);h=h+(rpPlateauH(wx,wz)-h)*t;const dm=Math.hypot(wx-MYST_X,wz-MYST_Z);if(dm<MYST_PAD_OUT){const q=smoothstep(MYST_PAD_OUT,MYST_PAD_IN,dm);h=h*(1-q)+MYST_PAD_Y*q}return h}   // V1.0 east extension + V1.2 structure pad (no older pads reach x>250)
+ if(wx>RP_X0){const t=smoothstep(RP_X0,RP_X0+RP_BLEND,wx);h=h+(rpPlateauH(wx,wz)-h)*t;const dm=Math.hypot(wx-MYST_X,wz-MYST_Z);if(dm<MYST_PAD_OUT){const q=smoothstep(MYST_PAD_OUT,MYST_PAD_IN,dm);h=h*(1-q)+MYST_PAD_Y*q}const dsp=Math.hypot(wx-SPIRE_X,wz-SPIRE_Z);if(dsp<SPIRE_PAD_OUT){const q=smoothstep(SPIRE_PAD_OUT,SPIRE_PAD_IN,dsp);h=h*(1-q)+SPIRE_PAD_Y*q}return h}   // V1.0 east extension + V1.2 structure pad (no older pads reach x>250)
  const ds=Math.hypot(wx-SHIP_SPOT.x,wz-SHIP_SPOT.z);
  if(ds<PAD_OUT){const t=smoothstep(PAD_OUT,PAD_IN,ds);h=h*(1-t)+PAD_Y*t}
  const dr=Math.hypot(wx-RC_CENTER_X,wz-RC_CENTER_Z);
  if(dr<RC_PAD_OUT){const t=smoothstep(RC_PAD_OUT,RC_PAD_IN,dr);h=h*(1-t)+RC_PAD_Y*t}
  const dcol=Math.hypot(wx-COL_X,wz-COL_Z);
  if(dcol<COL_PAD_OUT){const t=smoothstep(COL_PAD_OUT,COL_PAD_IN,dcol);h=h*(1-t)+COL_PAD_Y*t}
- return h;
+ return h+emDelta(wx,wz,h);   // v13.5: Emerald Expanse shaping (exactly 0 outside its radius)
 }
 const SHIP_FLOOR_Y=PAD_Y+SHIP_FY;
 
@@ -651,6 +695,7 @@ function createTerrain(){
      const f=w*smoothstep(-4,-9,lx)*(1-smoothstep(-28,-40,lx));
      c.multiplyScalar(1-f*.62);
    }
+   emTint(c,wx,wz,slope);   // v13.5: Emerald Expanse ground tint (no-op outside the biome)
    colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;
  }
  geo.setAttribute("color",new THREE.BufferAttribute(colors,3));
@@ -757,6 +802,7 @@ function createRedPlateau(){
      base.lerp(c,tc);
    }
    {const da=Math.hypot(wx-MYST_X,wz-MYST_Z);if(da<56)base.lerp(plazaC,.7*(1-smoothstep(38,56,da)))}   // dark paved apron around the structure
+   {const dsp=Math.hypot(wx-SPIRE_X,wz-SPIRE_Z);if(dsp<78)base.lerp(plazaC,.8*(1-smoothstep(54,78,dsp)))}   // Echo Spire apron
    col[i*3]=base.r;col[i*3+1]=base.g;col[i*3+2]=base.b;
  }
  geo.setAttribute("color",new THREE.BufferAttribute(col,3));
@@ -799,6 +845,7 @@ function createRedPlateau(){
  const mv=(geo,x,y,z)=>{geo.translate(x,y,z);return geo};
  const dummy=new THREE.Object3D();
  function addInst(geo,mat,items,cast){        // chunked into ~200x170 cells so culling and shadow passes stay local
+   items=items.filter(it=>Math.hypot(it.x-SPIRE_X,it.z-SPIRE_Z)>SPIRE_CLEAR);   // Echo Spire site stays clear (filtering after generation keeps every other placement identical)
    const cells=new Map();
    for(const it of items){const k=Math.floor((it.x-250)/201)+"_"+Math.floor((it.z+250)/170);if(!cells.has(k))cells.set(k,[]);cells.get(k).push(it)}
    for(const arr of cells.values()){
@@ -926,6 +973,7 @@ function createRedPlateau(){
     const r=R(34,58),h=R(34,72),mg=paint(new THREE.CylinderGeometry(r*.74,r,h,9,3),0x5b2219,0xb86a46,.1,list.indexOf(m));
     const me=new THREE.Mesh(mg,mesaMat);me.position.set(m.x,h/2-9,m.z);me.rotation.y=R(0,6);g.add(me);
   }}
+ for(let i=solids.length-1;i>=0;i--){const o=solids[i];if(Math.hypot(o.x-SPIRE_X,o.z-SPIRE_Z)<SPIRE_CLEAR)solids.splice(i,1)}   // matching colliders for the filtered scatter
  redFx=fx;redGroup=g;scene.add(g);
 }
 
@@ -2257,12 +2305,14 @@ function groundHeight(x,z){
  {const ry=colossalRampY(x,z);if(ry!==null)return ry}
  if(insideShip(x,z))return SHIP_FLOOR_Y;
  if(insideFacility(x,z))return facilityFloorY;
+ {const sy=spireGroundY(x,z);if(sy!==null)return sy}   // Echo Spire plaza / causeway / citadel floor
  return terrainHeight(x,z);
 }
 function collideWorld(pos,r){
  if(p3Inside){p3Collide(pos,r);return}
  if(inColossalInterior){collideInterior(pos,r);return}
  collideColossal(pos,r);
+ collideSpire(pos,r);
  // ship walls and furniture
  const th=ship.rotation.y,c=Math.cos(th),s=Math.sin(th);
  const dx=pos.x-ship.position.x,dz=pos.z-ship.position.z;
@@ -2618,6 +2668,7 @@ function currentAction(){
  }
  if(colossalNearDoor(p))return "ENTER COLOSSAL SHIP";
  if(p3CanEnter())return "ENTER THE STRUCTURE";
+ {const ea=emAction(p);if(ea)return ea}   // v13.5 alien fruit trees
  {const mr=mystAction(p);if(mr)return mr}
  if(caveMouth.x&&dist2D(p,caveMouth)<4.5&&CAVE_STATES.includes(state))return "ENTER THE CAVE";
  if(ruinNear(p)>=0)return "READ INSCRIPTION";
@@ -2647,6 +2698,7 @@ function interact(){
  if(logOpen){closeLog();return;}
  if(craftOpen){closeCraft();return;}
  const act=currentAction();
+ if(emInteract(act))return;   // v13.5 alien fruit trees
  if(act==="OPEN WORKBENCH"){openCraft();return;}
  if(act==="READ INSCRIPTION"){openRuin(ruinNear(player.position));return;}
  if(act==="COLLECT CRYSTAL"||act==="INSPECT CRYSTAL"){const c=nearCrystal();if(c)useCrystal(c);return;}
@@ -2848,6 +2900,8 @@ function getWaypoint(){
    case "RESEARCH": return researchCenter?{pos:researchCenter.position,name:"RESEARCH CENTER",txt:"FOLLOW THE SIGNAL TO THE RESEARCH CENTER",css:"#35e0ff",col:0x35e0ff,lift:5}:null;
    case "SHIP_RETURN": case "SHIP_SCAN": case "KEYCARD": case "STRUCTURE": case "ENTER_STRUCTURE": return chapter2Waypoint();
    case "TALK_KARTHIK": case "P3_CHOICE_DONE": return p3Waypoint();
+   case "ECHO_SPIRE": case "ECHO_ARRIVED": return echoWaypoint();
+   case "EMERALD_COMPASS": case "EMERALD_EXPANSE": return emWaypoint();
  }
  return null;
 }
@@ -4582,6 +4636,8 @@ function setup(){
  createTerrain();
  try{createRedPlateau()}catch(e){console.error("Red plateau failed; base world unaffected:",e)}
  try{createMystStructure()}catch(e){console.error("Structure failed; base world unaffected:",e)}
+ try{createEchoSpire()}catch(e){console.error("Echo Spire failed; base world unaffected:",e)}
+ try{createEmeraldExpanse()}catch(e){EM.off=true;console.error("Emerald Expanse failed; base world unaffected:",e)}
  try{p3BuildInterior()}catch(e){console.error("Phase 3 interior build failed:",e)}
  createWorldStructures();
  createColossalShip(); // new landmark; original crash ship and mechanics remain untouched
@@ -4711,7 +4767,7 @@ function setupButtons(){
    ============================================================ */
 let p3Inside=false,p3Built=false,p3Return={x:MYST_DOOR_X+8,z:MYST_Z,y:0},p3Hunger=100,p3Food=0,p3Fruit=0,p3KarthikMet=false,p3ChoiceShown=false;
 const P3={ox:900,oz:900,base:0,low:-25,mid:0,top:28,roomW:72,roomD:58};
-const p3Solids=[],p3Floors=[];let p3Root=null,p3Kar=null;
+const p3Solids=[],p3Floors=[];let p3Root=null,p3Kar=null,p3TopGrp=null,p3KarLight=null;
 const p3HungerEl=document.getElementById('p3-hunger'),p3HungerNum=document.getElementById('p3-hunger-num'),p3HungerFill=document.getElementById('p3-hunger-fill'),p3FoodCount=document.getElementById('p3-food-count'),p3ChoiceEl=document.getElementById('p3-choice');
 function p3Mat(color,metalness=.25,roughness=.72,transparent=false,opacity=1){return new THREE.MeshStandardMaterial({color,metalness,roughness,transparent,opacity,side:transparent?THREE.DoubleSide:THREE.FrontSide})}
 function p3Box(g,w,h,d,x,y,z,mat,solid=true){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);g.add(m);if(solid)p3Solids.push({x:P3.ox+x,z:P3.oz+z,hx:w/2,hz:d/2,y0:y-h/2,y1:y+h/2});return m}
@@ -4804,7 +4860,7 @@ function p3BuildInterior(){
  kPart(new THREE.BoxGeometry(.48,.16,.09),kVisor,0,2.12,.325);
  kPart(new THREE.BoxGeometry(.52,.035,.045),kCyan,0,2.015,.34);
  kPart(new THREE.BoxGeometry(.12,.06,.08),kCyan,-.3,2.11,.03);kPart(new THREE.BoxGeometry(.12,.06,.08),kCyan,.3,2.11,.03);
- p3Kar.position.set(53,P3.top,7);p3Kar.rotation.y=-Math.PI*.6;top.add(p3Kar);p3Glow(top,53,P3.top+2.25,7,0x39dfff,.55,6);
+ p3Kar.position.set(53,P3.top,7);p3Kar.rotation.y=-Math.PI*.6;top.add(p3Kar);p3TopGrp=top;p3KarLight=p3Glow(top,53,P3.top+2.25,7,0x39dfff,.55,6);
  p3Box(top,1.4,.08,.9,48,P3.top+1.05,14,amber,false);p3Box(top,.5,.6,.5,46,P3.top+.3,14,crate,false);p3Box(top,.5,.6,.5,47,P3.top+.3,14,crate,false);
  p3Root.visible=false;
 }
@@ -4839,11 +4895,12 @@ function p3SetWorld(on){   // while inside, hide the outdoor world (same idea as
 function p3ForceOut(){   // used by oxygen/combat respawns so the player is never left "inside" while teleported outdoors
  if(!p3Inside)return;
  p3Inside=false;p3Busy=false;p3SetWorld(true);if(p3Root)p3Root.visible=false;p3ChoiceEl.style.display='none';p3ChoiceShown=false;
+ ECHO.pendingExit=true;   // story hook runs next frame, after the respawn has moved the player
 }
 function p3NearInnerDoor(p){return p.x>MYST_DOOR_X+5&&p.x<MYST_DOOR_X+14.6&&Math.abs(p.z-MYST_Z)<8.6}
 function p3CanEnter(){
  return !p3Inside&&!p3Busy&&mystBuilt&&STORY.keycard&&mystDoor.open>.75&&!inCave&&!inColossalInterior&&
-  (state==="STRUCTURE"||state==="ENTER_STRUCTURE"||state==="TALK_KARTHIK"||state==="P3_CHOICE_DONE")&&p3NearInnerDoor(player.position);
+  (state==="STRUCTURE"||state==="ENTER_STRUCTURE"||state==="TALK_KARTHIK"||state==="P3_CHOICE_DONE"||state==="ECHO_SPIRE"||state==="ECHO_ARRIVED"||state==="EMERALD_COMPASS"||state==="EMERALD_EXPANSE")&&p3NearInnerDoor(player.position);
 }
 function p3NearKarthik(){const p=player.position;return p3Inside&&Math.abs(p.y-P3.top)<4&&Math.hypot(p.x-(P3.ox+53),p.z-(P3.oz+7))<6}
 function p3NearExit(){const p=player.position;return p3Inside&&Math.abs(p.y-P3.mid)<4&&Math.hypot(p.x-(P3.ox+3),p.z-P3.oz)<4.5}
@@ -4853,6 +4910,7 @@ function p3Enter(){
  fadeThen(()=>{
    try{
      p3Return={x:player.position.x,z:player.position.z,y:player.position.y};
+     try{karthikPark()}catch(e){}
      p3Inside=true;p3SetWorld(false);p3Root.visible=true;
      player.position.set(P3.ox+10,P3.mid,P3.oz);
      velocityX=velocityY=velocityZ=0;grounded=true;yaw=-Math.PI/2;pitch=.04;
@@ -4871,6 +4929,7 @@ function p3Exit(){
      player.position.set(p3Return.x,p3Return.y,p3Return.z);
      velocityX=velocityY=velocityZ=0;grounded=true;yaw=Math.PI/2;pitch=.04;
      if(!p3KarthikMet)setState('ENTER_STRUCTURE');
+     try{echoOnExit()}catch(e){console.error('Echo Spire exit hook failed:',e)}
    }finally{inputLocked=false;p3Busy=false}
  });
 }
@@ -4908,7 +4967,7 @@ function p3Waypoint(){
    if(p3NearInnerDoor(p))return {pos:null,txt:"PRESS USE TO ENTER THE STRUCTURE",noDist:true};
    return {pos:{x:MYST_DOOR_X+12.5,z:MYST_Z},name:"INNER DOOR",txt:"RETURN TO THE STRUCTURE",css:"#ffb36b",col:0xff9a4a,lift:5};
  }
- if(state==="P3_CHOICE_DONE")return {pos:null,txt:"EXPLORE THE STRUCTURE • EXIT THROUGH THE WEST DOOR",noDist:true};
+ if(state==="P3_CHOICE_DONE")return {pos:null,txt:"EXPLORE THE STRUCTURE • LEAVE THROUGH THE WEST DOOR TO CONTINUE",noDist:true};
  const L=p3Level(p.y);
  if(L===2)return {pos:{x:P3.ox+53,z:P3.oz+7},y:P3.top,name:"KARTHIK",txt:"TALK TO AGENT KARTHIK",css:"#ffd9a8",col:0xffb36b,lift:3};
  if(L===1)return {pos:{x:P3.ox+62,z:P3.oz+P3_LANE.topZ},y:P3.mid,name:"RAMP UP",txt:"TAKE THE RAMP UP TO THE OBSERVATORY",css:"#6fe0ff",col:0x6fe0ff,lift:3};
@@ -4917,6 +4976,497 @@ function p3Waypoint(){
 // Add food use to inventory shortcut: F = meal, G = alien fruit; no new items are spawned.
 document.getElementById('p3-meal-btn').addEventListener('click',()=>p3UseFood('meal'));document.getElementById('p3-fruit-btn').addEventListener('click',()=>p3UseFood('fruit'));
 window.addEventListener('keydown',e=>{if(e.repeat||!p3KarthikMet||p3ChoiceShown)return;if(e.code==='KeyF'){e.preventDefault();p3UseFood('meal')}if(e.code==='KeyG'){e.preventDefault();p3UseFood('fruit')}});
+
+/* ============================================================
+   NEXUS v13.4 — THE ECHO SPIRE (additive; Chapter 2 destination)
+   A colossal ancient megastructure on the red plateau, south of the mysterious structure.
+   - Everything is procedural geometry merged into a handful of meshes (stone / cyan / violet / far-glow / glyphs).
+   - Ground: terrainHeight() carries a flat pad; spireGroundY() adds the stepped plaza, causeway and citadel floor.
+   - Collision: collideSpire() (boxes + circles) is called from collideWorld(); the split doors only block while closed.
+   - Story: P3_CHOICE_DONE -> (player leaves the structure) -> ECHO_SPIRE -> (reaches the gateway) -> ECHO_ARRIVED.
+     "stay": Agent Karthik follows Hemadri.  "separate": Karthik stays at the structure.  Both branches share one destination.
+   - Uses its own deterministic hash (never the shared rand()), and every update is guarded.
+   ============================================================ */
+const ECHO={built:false,off:false,arrived:false,intro:false,root:null,door:{open:0,target:0},test:(location.search.match(/[?&]echo=(stay|separate|1)/)||[])[1]||"",testDone:false};
+const KF={active:false,moving:false,hd:0,bob:0,away:false};
+const SPIRE_BOX=[],SPIRE_CIR=[];          // world-space colliders: {x0,x1,z0,z1,door} / {x,z,r}
+const SPIRE_GATE_Z=-40;                    // local z of the gateway plane
+ORDER.push("ECHO_SPIRE","ECHO_ARRIVED");
+Object.assign(OBJ,{ECHO_SPIRE:"TRAVEL TO THE ECHO SPIRE",ECHO_ARRIVED:"EXPLORE THE ECHO SPIRE"});
+Object.assign(HEMTON_HINT,{ECHO_SPIRE:["A new structure is broadcasting an echo of the Gate's signal.","Follow the waypoint to the Echo Spire."],ECHO_ARRIVED:["The Echo Spire is open. Proceed with caution."]});
+Object.assign(NOVA_HINT,{ECHO_SPIRE:["Signal source ahead."],ECHO_ARRIVED:["Energy readings are off the scale."]});
+
+/* ---------- ground profile (local to the spire centre) ---------- */
+function spProfile(r){   // stepped plaza: 3 tiers joined by 4 m ramps (<= 7 degrees)
+ if(r>=68)return 0;
+ if(r>=64)return .3*(68-r)/4;
+ if(r>=56)return .3;
+ if(r>=52)return .3+.45*(56-r)/4;
+ if(r>=44)return .75;
+ if(r>=40)return .75+.5*(44-r)/4;
+ return 1.25;
+}
+function spireGroundY(x,z){
+ const dx=x-SPIRE_X,dz=z-SPIRE_Z;
+ if(dx>=70||dx<=-70||dz>=70||dz<=-70)return null;
+ const r=Math.hypot(dx,dz);if(r>=70)return null;   // beyond the flat pad the real (blended) terrain takes over
+ let y=spProfile(r);
+ if(dz>=-40&&dz<=40&&dx>=-44&&dx<=44)y=Math.max(y,1.25);                  // citadel floor
+ else if(dz<-40&&dz>-52){                                                  // causeway ramp up to the gateway
+   const ax=Math.abs(dx);
+   if(ax<14){const a=.75+.5*(52+dz)/12,w=ax<=10?1:1-(ax-10)/4;if(a>y)y+=(a-y)*w}
+ }
+ return SPIRE_PAD_Y+y;
+}
+function collideSpire(pos,r){
+ if(!SPIRE_BOX.length||Math.abs(pos.x-SPIRE_X)>76||pos.z<SPIRE_Z-112||pos.z>SPIRE_Z+76)return;
+ for(let pass=0;pass<2;pass++){
+   for(const b of SPIRE_BOX){
+     if(b.door&&ECHO.door.open>.75)continue;
+     const cx=Math.max(b.x0,Math.min(pos.x,b.x1)),cz=Math.max(b.z0,Math.min(pos.z,b.z1));
+     const dx=pos.x-cx,dz=pos.z-cz,d2=dx*dx+dz*dz;
+     if(d2>=r*r)continue;
+     if(d2>1e-8){const d=Math.sqrt(d2),k=(r-d)/d;pos.x+=dx*k;pos.z+=dz*k}
+     else{const l=pos.x-b.x0,rt=b.x1-pos.x,t=pos.z-b.z0,bt=b.z1-pos.z,m=Math.min(l,rt,t,bt);
+       if(m===l)pos.x=b.x0-r;else if(m===rt)pos.x=b.x1+r;else if(m===t)pos.z=b.z0-r;else pos.z=b.z1+r}
+   }
+   for(const o of SPIRE_CIR){
+     const dx=pos.x-o.x,dz=pos.z-o.z,d=Math.hypot(dx,dz),min=o.r+r;
+     if(d<min){if(d>1e-6){pos.x=o.x+dx/d*min;pos.z=o.z+dz/d*min}else pos.x=o.x+min}
+   }
+ }
+}
+function spColBox(lx0,lx1,lz0,lz1,door){SPIRE_BOX.push({x0:SPIRE_X+lx0,x1:SPIRE_X+lx1,z0:SPIRE_Z+lz0,z1:SPIRE_Z+lz1,door:!!door})}
+function spColCir(lx,lz,r){SPIRE_CIR.push({x:SPIRE_X+lx,z:SPIRE_Z+lz,r})}
+
+/* ---------- geometry builders (pure arrays; merged into a few meshes) ---------- */
+const spRGB=h=>[(h>>16&255)/255,(h>>8&255)/255,(h&255)/255];
+const SPC={dark:spRGB(0x1b1829),mid:spRGB(0x2a2640),lite:spRGB(0x3a3556),trim:spRGB(0x4c4670),plate:spRGB(0x302b47),floor:spRGB(0x252238),cyan:spRGB(0x59e8ff),violet:spRGB(0x9a6bff),far:spRGB(0xd6c2ff)};
+const spHash=i=>{const s=Math.sin(i*12.9898+1.7)*43758.5453;return s-Math.floor(s)};
+function spB(){return {p:[],n:[],c:[],k:0}}
+function spTri(B,a,b,c,hint,col,flip){
+ const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];
+ let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;
+ const l=Math.hypot(nx,ny,nz);if(l<1e-7)return;
+ const dx=(a[0]+b[0]+c[0])/3-hint[0],dy=(a[1]+b[1]+c[1])/3-hint[1],dz=(a[2]+b[2]+c[2])/3-hint[2];
+ let out=nx*dx+ny*dy+nz*dz>=0;if(flip)out=!out;
+ if(!out){const t=b;b=c;c=t;nx=-nx;ny=-ny;nz=-nz}
+ nx/=l;ny/=l;nz/=l;
+ const j=.9+.2*spHash(B.k++);
+ for(const v of[a,b,c]){B.p.push(v[0],v[1],v[2]);B.n.push(nx,ny,nz);B.c.push(col[0]*j,col[1]*j,col[2]*j)}
+}
+function spQuad(B,a,b,c,d,hint,col,flip){spTri(B,a,b,c,hint,col,flip);spTri(B,a,c,d,hint,col,flip)}
+function spOBox(B,c,u,v,w,hu,hv,hw,col){
+ const P=[];
+ for(const su of[-1,1])for(const sv of[-1,1])for(const sw of[-1,1])
+   P.push([c[0]+u[0]*hu*su+v[0]*hv*sv+w[0]*hw*sw,c[1]+u[1]*hu*su+v[1]*hv*sv+w[1]*hw*sw,c[2]+u[2]*hu*su+v[2]*hv*sv+w[2]*hw*sw]);
+ for(const f of[[0,1,3,2],[4,5,7,6],[0,1,5,4],[2,3,7,6],[0,2,6,4],[1,3,7,5]])spQuad(B,P[f[0]],P[f[1]],P[f[2]],P[f[3]],c,col);
+}
+function spBoxB(B,x,y0,z,w,h,d,yaw,col){   // box standing on y0
+ const cs=Math.cos(yaw),sn=Math.sin(yaw);
+ spOBox(B,[x,y0+h/2,z],[cs,0,-sn],[0,1,0],[sn,0,cs],w/2,h/2,d/2,col);
+}
+function spBeam(B,p0,p1,wS,wN,col){   // oriented box between two points (wS: width along the horizontal side axis, wN: thickness)
+ let dx=p1[0]-p0[0],dy=p1[1]-p0[1],dz=p1[2]-p0[2];const len=Math.hypot(dx,dy,dz);if(len<1e-6)return;dx/=len;dy/=len;dz/=len;
+ let sx=-dz,sy=0,sz=dx;let sl=Math.hypot(sx,sz);if(sl<1e-4){sx=1;sz=0;sl=1}sx/=sl;sz/=sl;       // s = up x d (horizontal)
+ const nx=dy*sz-dz*sy,ny=dz*sx-dx*sz,nz=dx*sy-dy*sx;                                       // n = d x s
+ spOBox(B,[(p0[0]+p1[0])/2,(p0[1]+p1[1])/2,(p0[2]+p1[2])/2],[dx,dy,dz],[sx,sy,sz],[nx,ny,nz],len/2,wS/2,wN/2,col);
+}
+function spPrism(B,cx,y0,cz,rb,rt,h,n,rot,col,capTop){
+ const ctr=[cx,y0+h/2,cz],step=Math.PI*2/n;
+ for(let i=0;i<n;i++){
+   const a0=rot+i*step,a1=a0+step,c0=Math.cos(a0),s0=Math.sin(a0),c1=Math.cos(a1),s1=Math.sin(a1);
+   const b0=[cx+c0*rb,y0,cz+s0*rb],b1=[cx+c1*rb,y0,cz+s1*rb],t0=[cx+c0*rt,y0+h,cz+s0*rt],t1=[cx+c1*rt,y0+h,cz+s1*rt];
+   spTri(B,b0,b1,t1,ctr,col);spTri(B,b0,t1,t0,ctr,col);
+   if(capTop!==false&&rt>.01)spTri(B,[cx,y0+h,cz],t0,t1,ctr,col);
+ }
+}
+function spAnnulus(B,cx,y0,cz,rIn,rOut,h,n,col){
+ const ctr=[cx,y0+h/2,cz],step=Math.PI*2/n;
+ for(let i=0;i<n;i++){
+   const a0=i*step,a1=a0+step,c0=Math.cos(a0),s0=Math.sin(a0),c1=Math.cos(a1),s1=Math.sin(a1);
+   const ob0=[cx+c0*rOut,y0,cz+s0*rOut],ob1=[cx+c1*rOut,y0,cz+s1*rOut],ot0=[cx+c0*rOut,y0+h,cz+s0*rOut],ot1=[cx+c1*rOut,y0+h,cz+s1*rOut];
+   const ib0=[cx+c0*rIn,y0,cz+s0*rIn],ib1=[cx+c1*rIn,y0,cz+s1*rIn],it0=[cx+c0*rIn,y0+h,cz+s0*rIn],it1=[cx+c1*rIn,y0+h,cz+s1*rIn];
+   spQuad(B,ob0,ob1,ot1,ot0,ctr,col);spQuad(B,ib0,ib1,it1,it0,ctr,col,true);spQuad(B,it0,ot0,ot1,it1,ctr,col);spQuad(B,ib0,ob0,ob1,ib1,ctr,col);
+ }
+}
+function spRibbon(B,pts,w,col){
+ for(let i=0;i<pts.length-1;i++){
+   const a=pts[i],b=pts[i+1],dx=b[0]-a[0],dz=b[2]-a[2],l=Math.hypot(dx,dz);if(l<1e-6)continue;
+   const px=-dz/l*w/2,pz=dx/l*w/2;
+   spQuad(B,[a[0]-px,a[1],a[2]-pz],[a[0]+px,a[1],a[2]+pz],[b[0]+px,b[1],b[2]+pz],[b[0]-px,b[1],b[2]-pz],[a[0],a[1]-1,a[2]],col);
+ }
+}
+function spOcta(B,c,rx,ry,rz,col){
+ const E=[[c[0]+rx,c[1],c[2]],[c[0],c[1],c[2]+rz],[c[0]-rx,c[1],c[2]],[c[0],c[1],c[2]-rz]];
+ for(const s of[-1,1])for(let i=0;i<4;i++)spTri(B,[c[0],c[1]+s*ry,c[2]],E[i],E[(i+1)%4],c,col);
+}
+function spGq(){return {p:[],u:[],c:[]}}
+function spGlyph(G,cx,cy,cz,nx,nz,w,h,cell,rgb,off){
+ const tx=-nz,tz=nx,hw=w/2,hh=h/2,o=off===undefined?.12:off,ox=nx*o,oz=nz*o;
+ const P=[[cx+ox-tx*hw,cy-hh,cz+oz-tz*hw],[cx+ox+tx*hw,cy-hh,cz+oz+tz*hw],[cx+ox+tx*hw,cy+hh,cz+oz+tz*hw],[cx+ox-tx*hw,cy+hh,cz+oz-tz*hw]];
+ const col=cell&3,row=(cell>>2)&3,u0=col/4,u1=(col+1)/4,v1=1-row/4,v0=1-(row+1)/4,UV=[[u0,v0],[u1,v0],[u1,v1],[u0,v1]];
+ for(const k of[0,1,2,0,2,3]){G.p.push(P[k][0],P[k][1],P[k][2]);G.u.push(UV[k][0],UV[k][1]);G.c.push(rgb[0],rgb[1],rgb[2])}
+}
+function spMesh(B,mat){
+ const g=new THREE.BufferGeometry();
+ g.setAttribute("position",new THREE.BufferAttribute(new Float32Array(B.p),3));
+ g.setAttribute("normal",new THREE.BufferAttribute(new Float32Array(B.n),3));
+ g.setAttribute("color",new THREE.BufferAttribute(new Float32Array(B.c),3));
+ g.computeBoundingSphere();
+ const m=new THREE.Mesh(g,mat);m.castShadow=false;m.receiveShadow=false;return m;
+}
+function spGlyphTex(){
+ const [c,g]=mkCanvas(512,512);
+ g.clearRect(0,0,512,512);g.strokeStyle="#fff";g.fillStyle="#fff";g.lineCap="round";g.lineJoin="round";
+ const circ=r=>{g.beginPath();g.arc(0,0,r,0,6.2832);g.stroke()};
+ const dot=(x,y,r)=>{g.beginPath();g.arc(x,y,r,0,6.2832);g.fill()};
+ const poly=(n,r,rot)=>{g.beginPath();for(let k=0;k<=n;k++){const a=(rot||0)+k*6.2832/n;g[k?"lineTo":"moveTo"](Math.cos(a)*r,Math.sin(a)*r)}g.stroke()};
+ const ln=(x0,y0,x1,y1)=>{g.beginPath();g.moveTo(x0,y0);g.lineTo(x1,y1);g.stroke()};
+ for(let i=0;i<16;i++){
+   g.save();g.translate((i&3)*128+64,(i>>2)*128+64);g.lineWidth=6;g.shadowColor="#fff";g.shadowBlur=10;
+   g.lineWidth=3;poly(4,58,.7854);g.lineWidth=6;
+   switch(i){
+     case 0:circ(38);circ(20);ln(-38,0,38,0);ln(0,-38,0,38);break;
+     case 1:circ(40);poly(3,32,-1.5708);dot(0,0,6);break;
+     case 2:g.beginPath();for(let k=0;k<64;k++){const a=k*.27,r=3+k*.55;g[k?"lineTo":"moveTo"](Math.cos(a)*r,Math.sin(a)*r)}g.stroke();break;
+     case 3:poly(6,40);poly(6,22,.5236);dot(0,0,5);break;
+     case 4:for(let k=0;k<3;k++){g.beginPath();g.arc(0,30,16+k*13,3.6,5.8);g.stroke()}ln(0,-36,0,14);break;
+     case 5:poly(4,40,.7854);poly(4,20,.7854);ln(-40,0,40,0);break;
+     case 6:for(let k=0;k<8;k++){const a=k*.7854;ln(Math.cos(a)*12,Math.sin(a)*12,Math.cos(a)*40,Math.sin(a)*40)}circ(12);break;
+     case 7:for(let k=0;k<4;k++){const y=-34+k*20;g.beginPath();g.moveTo(-34,y+14);g.lineTo(0,y-6);g.lineTo(34,y+14);g.stroke()}break;
+     case 8:g.beginPath();g.moveTo(-42,0);g.quadraticCurveTo(0,-38,42,0);g.quadraticCurveTo(0,38,-42,0);g.stroke();circ(11);dot(0,0,4);break;
+     case 9:g.beginPath();g.moveTo(-40,-26);for(let k=1;k<=6;k++)g.lineTo(-40+k*13.3,k%2?26:-26);g.stroke();ln(-40,0,40,0);break;
+     case 10:poly(4,40,0);poly(4,28,.5236);poly(4,16,1.0472);break;
+     case 11:g.beginPath();g.arc(0,0,34,.6,5.7);g.stroke();g.beginPath();g.arc(8,0,24,.9,5.4);g.stroke();dot(30,-20,5);break;
+     case 12:ln(0,-40,0,40);ln(-24,-24,0,-4);ln(24,-24,0,-4);ln(-30,-8,0,16);ln(30,-8,0,16);break;
+     case 13:for(let k=0;k<12;k++){const a=k*.5236;dot(Math.cos(a)*34,Math.sin(a)*34,4)}circ(16);break;
+     case 14:ln(-34,-34,-34,34);ln(34,-34,34,34);ln(-34,0,34,0);ln(-34,-34,34,-34);break;
+     default:poly(5,40,-1.5708);g.beginPath();for(let k=0;k<=5;k++){const a=-1.5708+k*1.2566*2;g[k?"lineTo":"moveTo"](Math.cos(a)*40,Math.sin(a)*40)}g.stroke();
+   }
+   g.restore();
+ }
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+
+/* ---------- towers ---------- */
+function spTower(S,GL,x,z,r0,H,gseed){
+ const n=8,rot=Math.PI/8,segs=Math.max(8,Math.round(H/11)),rAt=y=>r0*(1-.58*Math.pow(Math.min(1,y/H),.85));
+ spPrism(S.stone,x,-3,z,r0*1.4,r0*1.2,5,n,rot,SPC.lite);
+ for(let i=0;i<segs;i++){
+   const y0=H*i/segs,y1=H*(i+1)/segs,col=i%3===0?SPC.mid:i%3===1?SPC.dark:SPC.plate;
+   spPrism(S.stone,x,y0,z,rAt(y0),rAt(y1),y1-y0,n,rot,col);
+   if(i%2===1){const rr=rAt(y1);spPrism(S.stone,x,y1-1.5,z,rr*1.2,rr*1.14,1.5,n,rot,SPC.trim);spPrism(S.cy,x,y1-.9,z,rr*1.215,rr*1.215,.45,n,rot,SPC.cyan,false)}
+ }
+ const ap=Math.cos(Math.PI/8);
+ for(let k=0;k<4;k++){   // vertical conduits on the four faces
+   const a=k*Math.PI/2,ca=Math.cos(a),sa=Math.sin(a),y0=6,y1=H*.93,r0s=rAt(y0)*ap+.12,r1s=rAt(y1)*ap+.12;
+   spBeam(k%2?S.vi:S.cy,[x+ca*r0s,y0,z+sa*r0s],[x+ca*r1s,y1,z+sa*r1s],.55,.5,k%2?SPC.violet:SPC.cyan);
+   for(let g=0;g<3;g++){   // alien symbols
+     const y=H*(.16+.25*g)+((k+gseed)%2)*3,rs=rAt(y)*ap+.4,w=Math.max(3.4,rAt(y)*.85);
+     spGlyph(GL,x+ca*rs,y,z+sa*rs,ca,sa,w,w,(gseed*3+k*5+g*7)&15,(k+g)%2?SPC.violet:SPC.cyan,.05);
+   }
+ }
+ const rT=rAt(H);
+ spPrism(S.stone,x,H,z,rT*1.08,.08,H*.17,n,rot,SPC.trim);          // crown spire
+ for(let k=0;k<4;k++){const a=Math.PI/4+k*Math.PI/2,ca=Math.cos(a),sa=Math.sin(a);   // crown blades
+   spBeam(S.stone,[x+ca*rT*.9,H-5,z+sa*rT*.9],[x+ca*rT*2.0,H+H*.075,z+sa*rT*2.0],1.0,1.0,SPC.trim)}
+ spOcta(S.far,[x,H+H*.17+6,z],1.7,3,1.7,SPC.far);                    // beacon crystal (unfogged)
+ return rAt;
+}
+
+/* ---------- build ---------- */
+function createEchoSpire(){
+ if(ECHO.built)return;
+ const root=new THREE.Group();root.name="ECHO_SPIRE";root.position.set(SPIRE_X,SPIRE_PAD_Y,SPIRE_Z);
+ const S={stone:spB(),cy:spB(),vi:spB(),far:spB()},GL=spGq();
+ const st=S.stone;
+ /* --- plaza tiers (match spProfile exactly), citadel floor and causeway --- */
+ spPrism(st,0,0,0,68,64,.3,64,0,SPC.floor);
+ spPrism(st,0,0,0,56+.3*4/.45,52,.75,64,0,SPC.plate);
+ spPrism(st,0,0,0,44+.75*4/.5,40,1.25,64,0,SPC.mid);
+ spBoxB(st,0,-3,0,88,4.25,80,0,SPC.floor);                                   // atrium floor, top at y=1.25
+ spBeam(st,[0,.65,-40],[0,.15,-52],20,1.2,SPC.lite);                          // causeway ramp (top plane 1.25 -> .75)
+ for(const rr of[62.5,50.2])spAnnulus(S.cy,0,rr>55?.3:.75,0,rr,rr+.5,.04,72,SPC.cyan);
+ /* --- citadel walls --- */
+ for(const sx of[-1,1]){
+   const x0=sx>0?8:-44,x1=sx>0?44:-8,cx=(x0+x1)/2,w=x1-x0;
+   spBoxB(st,cx,-1,-40,w,26,4,0,SPC.mid);spBoxB(st,cx,25,-40,w,1.6,5.2,0,SPC.trim);
+   for(let i=0;i<Math.floor(w/6);i++)spBoxB(st,x0+3+i*6,26.6,-40,3.6,3.8,3.4,0,SPC.dark);
+   spBeam(S.cy,[x0+1,16,-42.25],[x1-1,16,-42.25],.5,.9,SPC.cyan);spBeam(S.cy,[x0+1,16,-37.75],[x1-1,16,-37.75],.5,.9,SPC.cyan);
+   for(let i=0;i<3;i++){const gx=sx*(18+i*9);spGlyph(GL,gx,11,-42.2,0,-1,5,5,(i*5+(sx>0?3:0))&15,i%2?SPC.violet:SPC.cyan);spGlyph(GL,gx,11,-37.8,0,1,5,5,(i*7+2)&15,i%2?SPC.cyan:SPC.violet)}
+   for(const px of[22.5,31.5,40.5])spBoxB(st,sx*px,-1,-41.4,2.6,30,5.6,0,SPC.lite);   // pilasters
+ }
+ for(const sx of[-1,1]){
+   const cx=sx*42;
+   spBoxB(st,cx,-1,-1,4,34,82,0,SPC.mid);spBoxB(st,cx,33,-1,5.2,1.6,82,0,SPC.trim);
+   for(let i=0;i<13;i++)spBoxB(st,cx,34.6,-34+i*6,3.4,3.8,3.6,0,SPC.dark);
+   spBeam(S.cy,[sx*39.75,20,-35],[sx*39.75,20,35],.5,.9,SPC.cyan);spBeam(S.vi,[sx*44.25,24,-35],[sx*44.25,24,35],.5,.9,SPC.violet);
+   for(let i=0;i<5;i++){spGlyph(GL,sx*39.7,12,-24+i*12,-sx,0,5,5,(i*3+(sx>0?1:6))&15,i%2?SPC.cyan:SPC.violet);spGlyph(GL,sx*44.3,14,-24+i*12,sx,0,5,5,(i*5+4)&15,SPC.violet)}
+ }
+ spBoxB(st,0,-1,39,88,38,6,0,SPC.mid);spBoxB(st,0,37,39,88,1.6,7.2,0,SPC.trim);
+ spBeam(S.vi,[-38,22,35.75],[38,22,35.75],.5,.9,SPC.violet);
+ for(let i=0;i<5;i++)spGlyph(GL,-30+i*15,14,35.7,0,-1,5.5,5.5,(i*3+9)&15,i%2?SPC.cyan:SPC.violet);
+ /* --- the gateway --- */
+ for(const sx of[-1,1]){
+   const px=sx*14;
+   spBoxB(st,px,-3,-40,12,56,12,0,SPC.mid);spBoxB(st,px,53,-40,10,12,10,0,SPC.plate);spBoxB(st,px,65,-40,8,10,8,0,SPC.mid);
+   spPrism(st,px,75,-40,5.6,.1,18,4,Math.PI/4,SPC.trim);spOcta(S.far,[px,98,-40],1.2,2.4,1.2,SPC.far);
+   spBeam(S.cy,[px,5,-46.2],[px,50,-46.2],.6,.5,SPC.cyan);spBeam(S.vi,[sx*8-sx*.2,5,-43],[sx*8-sx*.2,31,-43],.5,.4,SPC.violet);
+   for(let g=0;g<3;g++)spGlyph(GL,px,12+g*13,-46.15,0,-1,6,6,(g*5+(sx>0?2:11))&15,g%2?SPC.violet:SPC.cyan);
+   spBoxB(st,px,24,-46.6,13.4,1.4,1.8,0,SPC.trim);                           // buttress bands
+ }
+ spBoxB(st,0,32,-45,40,8,10,0,SPC.mid);spBoxB(st,0,30.4,-42,17,1.6,6,0,SPC.trim);spBoxB(st,0,40,-45,30,3,8,0,SPC.trim);
+ spBeam(S.cy,[-8,31.8,-40],[8,31.8,-40],1.4,.3,SPC.cyan);
+ for(let i=0;i<7;i++)spGlyph(GL,-15+i*5,36,-50.12,0,-1,4.2,4.8,(i*5+1)&15,i%2?SPC.violet:SPC.cyan,.0);
+ spPrism(st,0,43,-45,3.4,.2,13,4,Math.PI/4,SPC.trim);spOcta(S.far,[0,60,-45],1.5,3,1.5,SPC.far);
+ /* --- colossal towers --- */
+ const T=[[-44,-44,8.6,124,1],[44,-44,8.6,124,2],[-44,42,10,152,3],[44,42,10,152,4],[-44,-2,6.6,84,5],[44,-2,6.6,84,6]];
+ for(const t of T)spTower(S,GL,t[0],t[1],t[2],t[3],t[4]);
+ const GR0=16.5,GH=242;
+ const rG=spTower(S,GL,0,44,GR0,GH,7);                                          // the great spire
+ /* flying buttresses from the rear towers to the great spire and from the front towers to the gate pylons */
+ const arc=(p0,p1,rise,seg,wS,wN,col,gcol)=>{let prev=p0;for(let i=1;i<=seg;i++){const t=i/seg,q=[p0[0]+(p1[0]-p0[0])*t,p0[1]+(p1[1]-p0[1])*t+Math.sin(t*Math.PI)*rise,p0[2]+(p1[2]-p0[2])*t];spBeam(st,prev,q,wS,wN,col);prev=q}
+   let pv=p0;for(let i=1;i<=seg;i++){const t=i/seg,q=[p0[0]+(p1[0]-p0[0])*t,p0[1]+(p1[1]-p0[1])*t+Math.sin(t*Math.PI)*rise+wN*.5+.05,p0[2]+(p1[2]-p0[2])*t];spBeam(gcol,pv,q,.35,.3,gcol===S.vi?SPC.violet:SPC.cyan);pv=q}};
+ for(const sx of[-1,1]){
+   arc([sx*(44-6),104,42],[sx*(rG(104)+1),104,44],16,8,3.4,3,SPC.trim,S.cy);
+   arc([sx*(44-6),70,42],[sx*(rG(70)+1),70,44],10,8,3,2.6,SPC.trim,S.vi);
+   arc([sx*(44-5),88,-44],[sx*(12),74,-40],14,8,2.8,2.6,SPC.trim,S.cy);
+ }
+ /* great-spire fins and floating layered platforms */
+ for(let k=0;k<4;k++){
+   const a=Math.PI/4+k*Math.PI/2,ca=Math.cos(a),sa=Math.sin(a);
+   const pts=[[GR0+13,0],[GR0+9,38],[GR0+4.5,92],[GR0*.62,150]];
+   for(let i=0;i<pts.length-1;i++){
+     const p=[ca*pts[i][0],pts[i][1],44+sa*pts[i][0]],q=[ca*pts[i+1][0],pts[i+1][1],44+sa*pts[i+1][0]];
+     spBeam(st,p,q,3.4-i*.7,2.4-i*.4,SPC.plate);
+   }
+   spBeam(k%2?S.vi:S.cy,[ca*(GR0+14.2),3,44+sa*(GR0+14.2)],[ca*(GR0+10.2),38,44+sa*(GR0+10.2)],.4,.4,k%2?SPC.violet:SPC.cyan);
+ }
+ for(const [y,w] of[[58,11],[94,10],[132,9]]){
+   const ri=rG(y)+2.2,ro=ri+w;
+   spAnnulus(st,0,y-1,44,ri,ro,1.6,16,SPC.lite);spAnnulus(S.cy,0,y+.62,44,ro-1.2,ro-.5,.2,16,SPC.cyan);
+   for(let k=0;k<4;k++){const a=k*Math.PI/2,ca=Math.cos(a),sa=Math.sin(a);spBeam(st,[ca*(rG(y)),y-4,44+sa*rG(y)],[ca*(ri+2),y-1,44+sa*(ri+2)],1.4,1.4,SPC.trim)}
+ }
+ /* floor conduits, dais and the energy core */
+ const FY=1.25+.04,dais=[0,4];
+ spRibbon(S.cy,[[0,FY,-40],[0,FY,-9.6]],1.3,SPC.cyan);
+ spRibbon(S.vi,[[dais[0]+9.6,FY,dais[1]-9.6],[30,FY,-30],[38,FY,-34]],.7,SPC.violet);spRibbon(S.vi,[[-9.6,FY,dais[1]-9.6],[-30,FY,-30],[-38,FY,-34]],.7,SPC.violet);
+ spRibbon(S.vi,[[9.6,FY,dais[1]+9.6],[30,FY,30],[38,FY,32]],.7,SPC.violet);spRibbon(S.vi,[[-9.6,FY,dais[1]+9.6],[-30,FY,30],[-38,FY,32]],.7,SPC.violet);
+ {const ring=[];for(let i=0;i<=48;i++){const a=i*Math.PI*2/48;ring.push([Math.cos(a)*23,FY,dais[1]+Math.sin(a)*23])}spRibbon(S.cy,ring,.55,SPC.cyan)}
+ spRibbon(S.cy,[[-38,FY,-37],[38,FY,-37],[38,FY,37],[-38,FY,37],[-38,FY,-37]],.4,SPC.violet);
+ spPrism(st,0,1.2,dais[1],15.2,14,1.4,48,0,SPC.lite);spPrism(st,0,2.6,dais[1],14,12.4,.9,48,0,SPC.trim);
+ spAnnulus(S.cy,0,3.5,dais[1],10,10.8,.12,48,SPC.cyan);spAnnulus(S.vi,0,3.5,dais[1],5.6,6.2,.12,40,SPC.violet);spPrism(S.vi,0,3.5,dais[1],2.6,2.6,.14,24,0,SPC.violet);
+ /* sentinel obelisks along the approach */
+ for(const oz of[-62,-80,-98])for(const sx of[-1,1]){
+   const ox=sx*15,ly=terrainHeight(SPIRE_X+ox,SPIRE_Z+oz)-SPIRE_PAD_Y;
+   spPrism(st,ox,ly-2.5,oz,2.6,2.1,3.6,4,Math.PI/4,SPC.lite);spPrism(st,ox,ly+1,oz,1.9,.85,16,4,Math.PI/4,SPC.mid);
+   spOcta(S.far,[ox,ly+19,oz],1.1,2.5,1.1,SPC.far);spBeam(S.cy,[ox,ly+2,oz],[ox,ly+15,oz],.3,.3,SPC.cyan);
+   spGlyph(GL,ox-sx*1.35,ly+6,oz,-sx,0,2.1,2.1,(oz+sx*3+40)&15,SPC.cyan,.2);
+ }
+ /* --- merged meshes --- */
+ const stoneMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.82,metalness:.3,emissive:0x080612,emissiveIntensity:1});
+ const mCy=new THREE.MeshBasicMaterial({color:0x59e8ff,toneMapped:false}),mVi=new THREE.MeshBasicMaterial({color:0x9a6bff,toneMapped:false}),mFar=new THREE.MeshBasicMaterial({color:0xd6c2ff,toneMapped:false,fog:false});
+ root.add(spMesh(S.stone,stoneMat));root.add(spMesh(S.cy,mCy));root.add(spMesh(S.vi,mVi));root.add(spMesh(S.far,mFar));
+ const gtex=spGlyphTex();
+ const gg=new THREE.BufferGeometry();gg.setAttribute("position",new THREE.BufferAttribute(new Float32Array(GL.p),3));gg.setAttribute("uv",new THREE.BufferAttribute(new Float32Array(GL.u),2));gg.setAttribute("color",new THREE.BufferAttribute(new Float32Array(GL.c),3));gg.computeBoundingSphere();
+ const mGl=new THREE.MeshBasicMaterial({map:gtex,vertexColors:true,transparent:true,opacity:.95,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
+ const glyphMesh=new THREE.Mesh(gg,mGl);glyphMesh.renderOrder=3;root.add(glyphMesh);
+ /* --- split gateway doors (two leaves slide into the pylons) --- */
+ const leafH=30.75,leaves=[];
+ for(const sx of[-1,1]){
+   const LS=spB(),LG=spB(),LQ=spGq();
+   spOBox(LS,[0,0,0],[1,0,0],[0,1,0],[0,0,1],4,leafH/2,1.2,SPC.plate);
+   for(const yy of[-11,-1,9])spBoxB(LS,0,yy-.6,0,8.4,1.2,3.0,0,SPC.trim);
+   spBeam(LG,[-sx*3.7,-leafH/2+1,-1.28],[-sx*3.7,leafH/2-1,-1.28],.45,.3,SPC.cyan);
+   for(let g=0;g<3;g++)spGlyph(LQ,sx*0,-8+g*8.5,-1.3,0,-1,5.6,5.6,(g*5+sx*3+8)&15,g%2?SPC.violet:SPC.cyan,0);
+   const lg=new THREE.Group();lg.position.set(sx*4,1.25+leafH/2,SPIRE_GATE_Z);
+   lg.add(spMesh(LS,stoneMat));lg.add(spMesh(LG,mCy));
+   const qg=new THREE.BufferGeometry();qg.setAttribute("position",new THREE.BufferAttribute(new Float32Array(LQ.p),3));qg.setAttribute("uv",new THREE.BufferAttribute(new Float32Array(LQ.u),2));qg.setAttribute("color",new THREE.BufferAttribute(new Float32Array(LQ.c),3));
+   const qm=new THREE.Mesh(qg,mGl);qm.renderOrder=3;lg.add(qm);
+   root.add(lg);leaves.push({g:lg,sx,x0:sx*4});
+ }
+ /* --- gateway halo arcs, floating core, energy column, beacon, halos, shards --- */
+ const arcA=new THREE.Mesh(new THREE.TorusGeometry(15,.6,8,56,Math.PI),mCy);arcA.position.set(0,42,-45.2);root.add(arcA);
+ const arcB=new THREE.Mesh(new THREE.TorusGeometry(11.5,.45,8,56,Math.PI),mVi);arcB.position.set(0,42,-45.4);root.add(arcB);
+ const coreG=new THREE.Group();coreG.position.set(0,1.25+27,dais[1]);root.add(coreG);
+ const core=new THREE.Mesh(new THREE.IcosahedronGeometry(3.3,2),new THREE.MeshBasicMaterial({color:0xc6a8ff,toneMapped:false}));coreG.add(core);
+ const shell=new THREE.Mesh(new THREE.IcosahedronGeometry(5.3,1),new THREE.MeshBasicMaterial({color:0x59e8ff,wireframe:true,transparent:true,opacity:.75,toneMapped:false}));coreG.add(shell);
+ const rings=[];
+ [[8.6,.3,mCy],[11.2,.28,mVi],[13.8,.3,mCy]].forEach((d,i)=>{const r=new THREE.Mesh(new THREE.TorusGeometry(d[0],d[1],8,72),d[2]);r.rotation.set(i*1.05,i*.7,0);coreG.add(r);rings.push(r)});
+ const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.smoke,color:0x9a6bff,transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}));halo.scale.set(30,30,1);coreG.add(halo);
+ const light=new THREE.PointLight(0x9a6bff,220,150,1.7);light.position.set(0,0,0);coreG.add(light);
+ const colMat=new THREE.MeshBasicMaterial({color:0x9a6bff,transparent:true,opacity:.28,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,toneMapped:false});
+ const column=new THREE.Mesh(new THREE.CylinderGeometry(1,2.1,20,16,1,true),colMat);column.position.set(0,1.25+3.8+10,dais[1]);root.add(column);
+ const beamMat=new THREE.MeshBasicMaterial({color:0xa98aff,transparent:true,opacity:.2,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,toneMapped:false,fog:false});
+ const beacon=new THREE.Mesh(new THREE.CylinderGeometry(1.1,3.4,520,14,1,true),beamMat);beacon.position.set(0,GH+GH*.17+260,44);root.add(beacon);
+ const haloRings=[];
+ [[30,.8,mCy,0],[24,.6,mVi,1]].forEach((d,i)=>{const r=new THREE.Mesh(new THREE.TorusGeometry(d[0],d[1],6,64),d[2]);r.position.set(0,GH*.82+i*9,44);r.rotation.x=Math.PI/2+.25*(i?-1:1);root.add(r);haloRings.push(r)});
+ const shardB=spB();
+ for(let i=0;i<10;i++){const a=i*Math.PI*2/10,rad=40+(i%3)*6,y=GH*.74+(i%4)*9;spOcta(shardB,[Math.cos(a)*rad,y,Math.sin(a)*rad],2.4+(i%3),8+(i%4)*2.4,2.4+(i%3),i%2?SPC.violet:SPC.cyan)}
+ const shards=spMesh(shardB,new THREE.MeshBasicMaterial({vertexColors:true,toneMapped:false}));shards.position.set(0,0,44);root.add(shards);
+ /* --- flowing energy particles along the floor conduits (updated only when the player is near) --- */
+ const paths=[
+   [[0,FY+.2,-40],[0,FY+.2,-9.6]],
+   [[9.6,FY+.2,dais[1]-9.6],[30,FY+.2,-30],[38,FY+.2,-34]],[[-9.6,FY+.2,dais[1]-9.6],[-30,FY+.2,-30],[-38,FY+.2,-34]],
+   [[9.6,FY+.2,dais[1]+9.6],[30,FY+.2,30],[38,FY+.2,32]],[[-9.6,FY+.2,dais[1]+9.6],[-30,FY+.2,30],[-38,FY+.2,32]]
+ ].map(pts=>{const cum=[0];for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][2]-pts[i-1][2]));return {pts,cum,len:cum[cum.length-1]}});
+ const PN=70,pp=new Float32Array(PN*3),pst=[];
+ for(let i=0;i<PN;i++){pp[i*3+1]=-9999;pst.push({path:i%paths.length,s:spHash(i+3)*paths[i%paths.length].len,v:5+spHash(i+9)*5})}
+ const pg=new THREE.BufferGeometry();pg.setAttribute("position",new THREE.BufferAttribute(pp,3));
+ const pts=new THREE.Points(pg,new THREE.PointsMaterial({map:TEX.smoke,color:0xb7f3ff,size:1.6,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));pts.frustumCulled=false;root.add(pts);
+ (redGroup||scene).add(root);
+ /* --- colliders (world space) --- */
+ spColBox(-44,-8,-42,-38);spColBox(8,44,-42,-38);spColBox(-8.2,8.2,-41.3,-38.7,true);                // front wall + closed doors
+ spColBox(-20,-8,-46,-34);spColBox(8,20,-46,-34);                                                      // gate pylons
+ spColBox(-44,-40,-42,40);spColBox(40,44,-42,40);spColBox(-44,44,36,42);                                // side + back walls
+ for(const sx of[-1,1]){spColCir(sx*44,-44,9.6);spColCir(sx*44,42,11);spColCir(sx*44,-2,7.4)}
+ spColCir(0,44,17.4);spColCir(0,dais[1],14.4);                                                          // great spire base, dais
+ for(const oz of[-62,-80,-98])for(const sx of[-1,1])spColCir(sx*15,oz,1.5);                              // obelisks
+ ECHO.root=root;ECHO.mCy=mCy;ECHO.mVi=mVi;ECHO.mGl=mGl;ECHO.leaves=leaves;ECHO.coreG=coreG;ECHO.core=core;ECHO.shell=shell;ECHO.rings=rings;ECHO.halo=halo;ECHO.light=light;
+ ECHO.column=column;ECHO.colMat=colMat;ECHO.beamMat=beamMat;ECHO.haloRings=haloRings;ECHO.shards=shards;ECHO.pts=pts;ECHO.pg=pg;ECHO.pp=pp;ECHO.pst=pst;ECHO.paths=paths;ECHO.arcs=[arcA,arcB];
+ ECHO.built=true;
+}
+
+/* ---------- per-frame ---------- */
+function updateEchoSpire(dt,t){
+ if(ECHO.off||!ECHO.built)return;
+ const p=player.position;
+ // ?echo=stay|separate|1 : test shortcut (inert unless the URL carries it)
+ if(ECHO.test&&!ECHO.testDone&&started&&!inputLocked){
+   ECHO.testDone=true;
+   if(ECHO.test!=="1")STORY.karthikChoice=ECHO.test;else if(!STORY.karthikChoice)STORY.karthikChoice="stay";
+   p3ChoiceMade=true;STORY.keycard=true;ECHO.intro=true;
+   player.position.set(SPIRE_X,0,SPIRE_Z-96);player.position.y=groundHeight(SPIRE_X,SPIRE_Z-96);yaw=0;
+   setState("ECHO_SPIRE");if(STORY.karthikChoice==="stay")karthikFollowStart();
+ }
+ const dS=Math.hypot(p.x-SPIRE_X,p.z-SPIRE_Z);
+ const outdoors=!p3Inside&&!inCave&&!inColossalInterior;
+ const vis=!!(redGroup?redGroup.visible:true);
+ if(!vis)return;
+ /* energy pulse and slow rotations (cheap; only meaningful when the player is on the eastern half of the map) */
+ if(p.x>140||dS<700){
+   const pulse=1+.22*Math.sin(t*2.1),pv=1+.22*Math.sin(t*1.6+1.3);
+   ECHO.mCy.color.setRGB(.35*pulse,.91*pulse,1*pulse);ECHO.mVi.color.setRGB(.6*pv,.42*pv,1*pv);
+   ECHO.mGl.opacity=.82+.13*Math.sin(t*1.4);
+   ECHO.beamMat.opacity=.17+.06*Math.sin(t*1.1);
+   ECHO.core.rotation.y+=dt*.5;ECHO.core.rotation.x+=dt*.23;ECHO.shell.rotation.y-=dt*.35;ECHO.shell.rotation.z+=dt*.2;
+   ECHO.rings.forEach((r,i)=>{r.rotation.x+=dt*(.42+i*.17);r.rotation.y+=dt*(.3-i*.11)});
+   ECHO.coreG.position.y=1.25+27+Math.sin(t*.8)*.9;
+   ECHO.halo.material.opacity=.5+.12*Math.sin(t*2.3);
+   ECHO.light.intensity=(SET.lowfx?150:220)*(.88+.12*Math.sin(t*2.6));
+   ECHO.colMat.opacity=.22+.08*Math.sin(t*3.1);
+   ECHO.haloRings[0].rotation.z+=dt*.15;ECHO.haloRings[1].rotation.z-=dt*.22;
+   ECHO.shards.rotation.y+=dt*.06;
+ }
+ /* gateway doors */
+ const D=ECHO.door;
+ if(D.open!==D.target){
+   D.open=Math.min(1,Math.max(0,D.open+Math.sign(D.target-D.open)*dt/7));
+   const e=D.open*D.open*(3-2*D.open);
+   for(const L of ECHO.leaves)L.g.position.x=L.x0+L.sx*7.7*e;
+ }
+ /* floor-conduit particles */
+ const showP=outdoors&&dS<190&&!SET.lowfx&&(typeof perfLevel==="undefined"||perfLevel<2);
+ ECHO.pts.visible=showP;
+ if(showP){
+   const pp=ECHO.pp;
+   for(let i=0;i<ECHO.pst.length;i++){
+     const q=ECHO.pst[i],P=ECHO.paths[q.path];q.s+=q.v*dt;if(q.s>P.len)q.s-=P.len;
+     let k=1;while(k<P.cum.length-1&&P.cum[k]<q.s)k++;
+     const f=(q.s-P.cum[k-1])/Math.max(1e-6,P.cum[k]-P.cum[k-1]),a=P.pts[k-1],b=P.pts[k];
+     pp[i*3]=a[0]+(b[0]-a[0])*f;pp[i*3+1]=a[1]+(b[1]-a[1])*f;pp[i*3+2]=a[2]+(b[2]-a[2])*f;
+   }
+   ECHO.pg.attributes.position.needsUpdate=true;
+ }
+ /* arrival: only when the story asks for it, once */
+ if(state==="ECHO_SPIRE"&&outdoors&&!ECHO.arrived&&!inputLocked&&!speaking&&Math.hypot(p.x-SPIRE_X,p.z-(SPIRE_Z-50))<20)echoArrive();
+}
+function updateEchoSpireSafe(dt,t){
+ try{if(ECHO.pendingExit&&started&&!p3Inside&&!oxygenRespawnLock){ECHO.pendingExit=false;echoOnExit()}}catch(e){ECHO.pendingExit=false;console.error("NEXUS Echo Spire story hook failed:",e)}
+ try{updateEchoSpire(dt,t)}catch(e){if(!ECHO.off){ECHO.off=true;console.error("NEXUS Echo Spire effects disabled after error:",e)}}
+}
+
+/* ---------- story ---------- */
+function echoWaypoint(){
+ if(p3Inside)return {pos:null,txt:"LEAVE THROUGH THE WEST DOOR • THEN TRAVEL TO THE ECHO SPIRE",noDist:true};
+ if(inCave||inColossalInterior)return {pos:null,txt:"RETURN OUTSIDE • THEN TRAVEL TO THE ECHO SPIRE",noDist:true};
+ const p=player.position;
+ if(state==="ECHO_SPIRE")return {pos:{x:SPIRE_X,z:SPIRE_Z-50},name:"ECHO SPIRE",txt:"TRAVEL TO THE ECHO SPIRE",css:"#9a6bff",col:0x9a6bff,lift:26};
+ if(Math.hypot(p.x-SPIRE_X,p.z-(SPIRE_Z+4))>22&&ECHO.door.open>.5)return {pos:{x:SPIRE_X,z:SPIRE_Z+4},y:groundHeight(SPIRE_X,SPIRE_Z+4),name:"ECHO CORE",txt:"APPROACH THE ECHO CORE",css:"#59e8ff",col:0x59e8ff,lift:30};
+ return {pos:null,txt:"EXPLORE THE ECHO SPIRE",noDist:true};
+}
+function echoOnExit(){   // called whenever the player is back outside the structure (p3Exit / p3ForceOut)
+ if(!p3ChoiceMade||(STORY.karthikChoice!=="stay"&&STORY.karthikChoice!=="separate"))return;
+ const first=state==="P3_CHOICE_DONE";
+ if(first)setState(ECHO.arrived?"ECHO_ARRIVED":"ECHO_SPIRE");
+ if(STORY.karthikChoice==="stay")karthikFollowStart();
+ if(first&&!ECHO.intro){
+   ECHO.intro=true;
+   try{neutron("NEW DESTINATION","THE ECHO SPIRE")}catch(e){}
+   speak("HEMTON",["Long-range scans have resolved a structure far larger than anything on record.","Designation: THE ECHO SPIRE. It is answering the Gate's signal.","Follow the waypoint, Hemadri."],()=>{
+     if(STORY.karthikChoice==="stay"&&KF.active)speak("KARTHIK",["Lead the way. I'll keep close."]);
+   });
+ }
+}
+function echoArrive(){
+ if(ECHO.arrived||state!=="ECHO_SPIRE")return;
+ ECHO.arrived=true;setState("ECHO_ARRIVED");ECHO.door.target=1;
+ try{hum(5,34,.3)}catch(e){}
+ try{neutron("THE ECHO SPIRE","GATEWAY RESPONDING")}catch(e){}
+ speak("HEMTON",["Structure scale confirmed. It dwarfs everything we have seen.","The gateway is responding to your approach.","Keep an eye on your oxygen, Hemadri."],()=>{
+   if(STORY.karthikChoice==="stay"&&KF.active)speak("KARTHIK",["I have watched this glow from a distance for years.","I never dared come closer. Together, maybe we can."]);
+   else if(STORY.karthikChoice==="separate")speak("HEMTON",["Karthik remains at the structure.","Whatever waits inside, you approach it alone."]);
+ });
+}
+
+/* ---------- Agent Karthik: companion behaviour ("stay with Karthik") ---------- */
+function karthikPark(){   // return him to his post inside the structure (also used when entering it)
+ KF.active=false;KF.moving=false;
+ if(!p3Kar)return;
+ if(p3TopGrp){p3TopGrp.add(p3Kar);p3Kar.position.set(53,P3.top,7);p3Kar.rotation.set(0,-Math.PI*.6,0);p3Kar.visible=true}
+ if(p3KarLight)p3KarLight.intensity=.55;
+}
+function karthikFollowStart(){
+ if(!p3Kar||STORY.karthikChoice!=="stay"||KF.active)return;
+ const p=player.position,sx=Math.sin(yaw),cx=Math.cos(yaw);
+ KF.active=true;KF.moving=false;KF.away=false;
+ scene.add(p3Kar);p3Kar.rotation.set(0,0,0);p3Kar.visible=true;
+ if(p3KarLight)p3KarLight.intensity=0;
+ const k=p3Kar.position;k.set(p.x+sx*2.6+cx*1.8,p.y,p.z+cx*2.6-sx*1.8);
+ collideAny(k,.55,p.x,p.z);k.y=groundHeight(k.x,k.z);
+ p3Kar.rotation.y=Math.atan2(p.x-k.x,p.z-k.z);
+}
+function updateKarthikFollow(dt,t){
+ if(!KF.active||!p3Kar)return;
+ const away=inCave||inColossalInterior||p3Inside||roverMounted;
+ if(away){p3Kar.visible=false;KF.away=true;KF.moving=false;return}
+ const p=player.position,k=p3Kar.position;
+ p3Kar.visible=true;
+ let dx=p.x-k.x,dz=p.z-k.z,d=Math.hypot(dx,dz);
+ if(KF.away){KF.away=false;if(d>14){const sx=Math.sin(yaw),cx=Math.cos(yaw);k.set(p.x+sx*3+cx*1.8,p.y,p.z+cx*3-sx*1.8);dx=p.x-k.x;dz=p.z-k.z;d=Math.hypot(dx,dz)}}
+ if(d>55){const sx=Math.sin(yaw),cx=Math.cos(yaw);k.set(p.x+sx*3.5+cx*1.8,p.y,p.z+cx*3.5-sx*1.8);dx=p.x-k.x;dz=p.z-k.z;d=Math.hypot(dx,dz)}   // fell far behind (respawn, rover): rejoin
+ const ox=k.x,oz=k.z;
+ if(!KF.moving&&d>5.4)KF.moving=true;else if(KF.moving&&d<3.7)KF.moving=false;
+ let step=0;
+ if(KF.moving&&d>1e-4){
+   const sp=Math.min(5.6,(d-3.7)*2.2+1.6);step=sp*dt;
+   k.x+=dx/d*step;k.z+=dz/d*step;
+ }else if(d<2.4&&d>1e-4){                              // never crowd the player: step back, faster the closer he is
+   const sp=Math.min(5,(2.4-d)*3+1.2)*dt;k.x-=dx/d*sp;k.z-=dz/d*sp;
+ }
+ if(typeof nova!=="undefined"&&nova&&novaMode==="online"){   // keep a little room between companions
+   const ndx=k.x-nova.position.x,ndz=k.z-nova.position.z,nd=Math.hypot(ndx,ndz);
+   if(nd<1.7&&nd>1e-4){k.x+=ndx/nd*(1.7-nd)*Math.min(1,dt*3);k.z+=ndz/nd*(1.7-nd)*Math.min(1,dt*3)}
+ }
+ collideAny(k,.55,ox,oz);
+ const hx=k.x-ox,hz=k.z-oz;
+ const want=(step>0&&Math.hypot(hx,hz)>1e-5)?Math.atan2(hx,hz):Math.atan2(dx,dz);
+ p3Kar.rotation.y=lerpAngle(p3Kar.rotation.y,want,1-Math.pow(.0008,dt));
+ KF.bob+=step>0?dt*9:0;
+ p3Kar.position.y=groundHeight(k.x,k.z)+(step>0?Math.abs(Math.sin(KF.bob))*.07:0);
+ p3Kar.rotation.x=step>0?.05:0;
+}
 
 /* ---------- per-frame updates ---------- */
 function updatePlayer(dt){
@@ -5126,6 +5676,7 @@ function animate(){
    updateTweens(dt);
    updatePickups(dt,t);
    updateNova(dt,t);
+   try{updateKarthikFollow(dt,t)}catch(e){if(KF.active){KF.active=false;console.error("NEXUS Karthik follow disabled after error:",e)}}
    updateShipFX(dt,t);
    updateColossal(dt,t);
    updateRoverFX(dt,t);
@@ -5135,6 +5686,8 @@ function animate(){
    updateWorldFX(dt);
    updateWorldStructures(t);
    if(redGroup)try{updateRedPlateau(t)}catch(e){}
+   updateEchoSpireSafe(dt,t);
+   updateEmeraldSafe(dt,t);
    try{updateStoryFX(t)}catch(e){}
    if(typeof updateCaveFX==="function")updateCaveFX(dt,t);
    if(typeof updateChapter1Sites==="function")updateChapter1Sites(dt,t);
@@ -5724,6 +6277,345 @@ function updateCombat(dt,t){
   if(on){cbHudSet("cbTName","t",CB.target.name+(CB.target.stun?" • STUNNED":""));cbHudSet("cbTF","w",CB.target.hp/CB.target.maxHp*100+"%")}
  }
 }
+
+/* ============================================================
+   NEXUS v13.5 — THE EMERALD EXPANSE (additive)
+   - Biome: instanced grass / shrubs / glow plants / moss / rocks / basalt columns / alien trees, pool + stream, spores.
+   - Fruit: 12 fruit trees x 6 fixed fruit slots (ONE InstancedMesh + ONE halo InstancedMesh, never re-created). Collecting hides that slot,
+     it regrows after a cooldown. Collection adds exactly 1 to the EXISTING alien-fruit counter p3Fruit (same item Karthik gives) and uses
+     the existing p3UpdateHUD() / p3UseFood('fruit') (+100% hunger). No second inventory, hunger meter or control.
+   - Story: ECHO_ARRIVED -> (player reaches the Echo core) -> EMERALD_COMPASS -> (enters the biome) -> EMERALD_EXPANSE.
+   - Uses a private PRNG: the shared world PRNG sequence is untouched.
+   ============================================================ */
+ORDER.push("EMERALD_COMPASS","EMERALD_EXPANSE");
+Object.assign(OBJ,{EMERALD_COMPASS:"FOLLOW THE COMPASS",EMERALD_EXPANSE:"EXPLORE THE EMERALD EXPANSE"});
+Object.assign(HEMTON_HINT,{EMERALD_COMPASS:["The Echo core has locked a bearing onto your compass.","Follow it, Hemadri."],EMERALD_EXPANSE:["Glowing trees here bear fruit compatible with human digestion.","Keep an eye on your hunger."]});
+Object.assign(NOVA_HINT,{EMERALD_COMPASS:["Bearing locked. Moving out."],EMERALD_EXPANSE:["Moisture and chlorophyll signatures everywhere."]});
+const EM_REGROW_MIN=60,EM_REGROW_VAR=30,EM_GROW_TIME=5,EM_FLY_TIME=.35,EM_REACH=5.4;
+
+function emMergeGeo(list){
+ let n=0;const gs=list.map(q=>{q=q.index?q.toNonIndexed():q;n+=q.attributes.position.count;return q});
+ const pos=new Float32Array(n*3),nor=new Float32Array(n*3),col=new Float32Array(n*3);let o=0;
+ for(const q of gs){pos.set(q.attributes.position.array,o*3);nor.set(q.attributes.normal.array,o*3);col.set(q.attributes.color.array,o*3);o+=q.attributes.position.count}
+ const m=new THREE.BufferGeometry();
+ m.setAttribute("position",new THREE.BufferAttribute(pos,3));m.setAttribute("normal",new THREE.BufferAttribute(nor,3));m.setAttribute("color",new THREE.BufferAttribute(col,3));
+ m.computeBoundingSphere();return m;
+}
+function emPaint(g,hex){const c=new THREE.Color(hex),n=g.attributes.position.count,a=new Float32Array(n*3);for(let i=0;i<n;i++){a[i*3]=c.r;a[i*3+1]=c.g;a[i*3+2]=c.b}g.setAttribute("color",new THREE.BufferAttribute(a,3));return g}
+function emGradY(g,lo,hi){
+ const p=g.attributes.position,n=p.count,a=new Float32Array(n*3);let y0=1e9,y1=-1e9;
+ for(let i=0;i<n;i++){const y=p.getY(i);if(y<y0)y0=y;if(y>y1)y1=y}
+ const A=new THREE.Color(lo),B=new THREE.Color(hi),T=new THREE.Color();
+ for(let i=0;i<n;i++){T.copy(A).lerp(B,(p.getY(i)-y0)/Math.max(.001,y1-y0));a[i*3]=T.r;a[i*3+1]=T.g;a[i*3+2]=T.b}
+ g.setAttribute("color",new THREE.BufferAttribute(a,3));return g;
+}
+function emLimb(a,b,r0,r1,hex,seg){
+ const dx=b[0]-a[0],dy=b[1]-a[1],dz=b[2]-a[2],L=Math.hypot(dx,dy,dz)||.01;
+ const g=new THREE.CylinderGeometry(r1,r0,L,seg||6,1,false);
+ g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx/L,dy/L,dz/L)));
+ g.translate((a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2);return emPaint(g,hex);
+}
+function emLobe(r,x,y,z,lo,hi,flat){const g=new THREE.IcosahedronGeometry(r,1);g.scale(1,flat||.5,1);g.translate(x,y,z);return emGradY(g,lo,hi)}
+function emTendril(x,y,z,len,hex){const g=new THREE.ConeGeometry(.11,len,4);g.rotateX(Math.PI);g.translate(x,y-len/2,z);return emPaint(g,hex)}
+
+/* tree bodies: kind A umbrella, B candelabra, C squat, F fruit tree (returns geometry, trunk radius and fruit slots) */
+function emTreeGeo(kind){
+ const L=[],slots=[];let trunkR=1.1;
+ const BARK=0x45304a,BARK2=0x5a4262;
+ if(kind==="A"||kind==="F"){
+   const F=kind==="F",top=F?6.6:5.8;
+   L.push(emLimb([0,0,0],[.3,top*.5,.2],F?1.15:1,.85,BARK,7),emLimb([.3,top*.5,.2],[0,top,0],.85,.55,BARK,7));
+   const lo=F?0x0f8f86:0x1b7f55,hi=F?0x7dffe8:0x5de8a0;
+   for(let k=0;k<4;k++){
+     const a=k*1.5708+.4,c=Math.cos(a),s=Math.sin(a),ey=top+2.2+(k%2)*.8;
+     L.push(emLimb([0,top,0],[c*1.3,top+1.1,s*1.3],.5,.38,BARK2,5),emLimb([c*1.3,top+1.1,s*1.3],[c*3.2,ey,s*3.2],.38,.2,BARK2,5));
+     L.push(emLobe(F?2.5:2.1,c*3.2,ey+.25,s*3.2,lo,hi));
+     for(let t=0;t<3;t++){const b=a+t*2.1;L.push(emTendril(c*3.2+Math.cos(b)*1.5,ey-.2,s*3.2+Math.sin(b)*1.5,1.6+t*.4,F?0xa6fff0:0x7dffc0))}
+   }
+   L.push(emLobe(F?3:2.6,0,top+3.6,0,lo,hi));
+   if(F){
+     const ring=new THREE.TorusGeometry(4.1,.13,5,22);ring.rotateX(Math.PI/2);ring.translate(0,top+3.2,0);L.push(emPaint(ring,0xbffff2));
+     for(let i=0;i<6;i++){   // fruit slots hang from short stems under the canopy
+       const a=i*1.0472+.2,r=2.7+(i%2)*1.1,x=Math.cos(a)*r,z=Math.sin(a)*r,y=top+.45-(i%3)*.22;
+       L.push(emLimb([x,y+1.05,z],[x,y+.32,z],.05,.04,0x6aff9a,4));slots.push([x,y,z]);
+     }
+   }
+ }else if(kind==="B"){
+   trunkR=.95;L.push(emLimb([0,0,0],[.2,4.2,0],1,.7,BARK,6));
+   for(const s of[-1,1]){
+     const m=[s*1.7,6.8,s*.3];L.push(emLimb([.2,4.2,0],m,.6,.4,BARK2,5));
+     for(const e of[[s*3,10.3,s*.6],[s*.8,10.6,-s*.9]]){L.push(emLimb(m,e,.4,.18,BARK2,5),emLobe(1.55,e[0],e[1]+.5,e[2],0x1d9a6a,0x9affc0,.6));L.push(emTendril(e[0]+.6,e[1]+.2,e[2],1.4,0x7dffd0))}
+   }
+   L.push(emLobe(1.9,.3,11.8,0,0x1d9a6a,0xb4ffcc,.6));
+ }else{
+   trunkR=1.6;L.push(emLimb([0,0,0],[0,3,0],1.6,1.1,BARK,7));
+   for(let k=0;k<3;k++){const a=k*2.094+.8,c=Math.cos(a),s=Math.sin(a);
+     L.push(emLimb([0,2.6,0],[c*3.4,4.4,s*3.4],.8,.45,BARK2,5),emLobe(3.1,c*3.7,4.8,s*3.7,0x0e5a58,0x2fd0a0,.32));
+     for(let t=0;t<4;t++){const b=t*1.57+a;L.push(emTendril(c*3.7+Math.cos(b)*2.3,4.7,s*3.7+Math.sin(b)*2.3,1.9,0x5cffd8))}}
+   L.push(emLobe(2.4,0,5.2,0,0x0e5a58,0x2fd0a0,.4));
+ }
+ return{geo:emMergeGeo(L),trunkR,slots};
+}
+
+function createEmeraldExpanse(){
+ if(EM.built)return;
+ const rnd=mulberry32(77113),RN=(a,b)=>a+(b-a)*rnd();
+ const root=new THREE.Group();root.name="EMERALD_EXPANSE";scene.add(root);EM.root=root;
+ const hAt=terrainHeight,slopeAt=(x,z)=>Math.hypot(hAt(x+1.5,z)-hAt(x-1.5,z),hAt(x,z+1.5)-hAt(x,z-1.5))/3;
+ const dC=(x,z)=>Math.hypot(x-EM.x,z-EM.z),dP=(x,z)=>Math.hypot(x-EM.pool.x,z-EM.pool.z);
+ const wet=(x,z,m)=>dP(x,z)<EM.pool.r+2+(m||0)||emStreamD(x,z)<2.6+(m||0);
+ const dens=(x,z)=>smoothstep(EM.R,EM.R*.28,dC(x,z));
+ const pickPt=(rMax)=>{const a=rnd()*6.2832,r=Math.sqrt(rnd())*rMax;return[EM.x+Math.cos(a)*r,EM.z+Math.sin(a)*r]};
+ const dummy=new THREE.Object3D(),CELL=56;
+ const mStd=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85,metalness:0,flatShading:true});
+ const mGrass=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0,side:THREE.DoubleSide});
+ const mGlow=new THREE.MeshBasicMaterial({vertexColors:true,toneMapped:false});
+ const mHalo=new THREE.MeshBasicMaterial({color:0x35ffd0,transparent:true,opacity:.2,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false});
+ const mFruit=new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false});
+ const mFHalo=new THREE.MeshBasicMaterial({color:0x6dffd0,transparent:true,opacity:.28,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false});
+ const mBeacon=new THREE.MeshBasicMaterial({color:0x7dffe8,transparent:true,opacity:.18,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false});
+ const mWater=new THREE.MeshStandardMaterial({color:0x07454f,emissive:0x1fe0c8,emissiveIntensity:.8,roughness:.2,metalness:.1,transparent:true,opacity:.84,depthWrite:false});
+ EM.mats={mGlow,mHalo,mFruit,mFHalo,mBeacon,mWater};
+ const inst=(geo,mat,items,hasColor)=>{
+   const cells=new Map();
+   for(const it of items){const k=Math.floor((it.x-EM.x+EM.R)/CELL)+"_"+Math.floor((it.z-EM.z+EM.R)/CELL);if(!cells.has(k))cells.set(k,[]);cells.get(k).push(it)}
+   for(const arr of cells.values()){
+     const m=new THREE.InstancedMesh(geo,mat,arr.length),c=new THREE.Color();
+     arr.forEach((it,i)=>{dummy.position.set(it.x,it.y,it.z);dummy.rotation.set(0,it.ry||0,0);dummy.scale.set(it.sx,it.sy,it.sz);dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);if(hasColor){c.setHex(it.c);m.setColorAt(i,c)}});
+     m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;m.castShadow=false;m.receiveShadow=false;m.computeBoundingSphere();root.add(m);
+   }
+ };
+ const S=(k)=>({sx:k,sy:k,sz:k});
+ /* ---- geometries ---- */
+ const tuftG=(()=>{const L=[];for(let k=0;k<3;k++){const g=new THREE.PlaneGeometry(.5,1,1,1);g.translate(0,.5,0);const p=g.attributes.position;for(let i=0;i<p.count;i++)if(p.getY(i)>.5)p.setX(i,p.getX(i)*.12);g.rotateY(k*1.0472);L.push(emGradY(g,0x555555,0xffffff))}return emMergeGeo(L)})();
+ const shrubG=(()=>{const L=[];for(let k=0;k<7;k++){const g=new THREE.ConeGeometry(.2,1.3,5);g.translate(0,.65,0);g.rotateZ(.45+(k%3)*.18);g.rotateY(k*.9);L.push(emGradY(g,0x0b4a44,0x5ff0c8))}
+   const b=new THREE.IcosahedronGeometry(.34,0);b.translate(0,.35,0);L.push(emPaint(b,0x1e9a6a));return emMergeGeo(L)})();
+ const glowG=(()=>{const L=[emLimb([0,0,0],[.12,.45,0],.05,.035,0x335a50,4),emLimb([.12,.45,0],[0,.85,.08],.035,.03,0x335a50,4)];
+   const b=new THREE.IcosahedronGeometry(.17,1);b.translate(0,.95,.08);L.push(emPaint(b,0xffffff));return emMergeGeo(L)})();
+ const haloG=new THREE.IcosahedronGeometry(.55,1);
+ const mossG=emPaint((()=>{const g=new THREE.CircleGeometry(1,8);g.rotateX(-Math.PI/2);return g})(),0xffffff);
+ const rockG=(()=>{const g=new THREE.IcosahedronGeometry(1,1),p=g.attributes.position;
+   for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),k=1+.22*Math.sin(x*3.1+y*2.3)+.16*Math.sin(z*4.2-x*1.7);p.setXYZ(i,x*k,y*k*.72,z*k)}
+   g.computeVertexNormals();const n=g.attributes.normal,c=new Float32Array(p.count*3),A=new THREE.Color(0x2a2430),B=new THREE.Color(0x2f8a5c),T=new THREE.Color();
+   for(let i=0;i<p.count;i++){T.copy(A).lerp(B,Math.max(0,Math.min(1,(n.getY(i)-.35)*1.8)));c[i*3]=T.r;c[i*3+1]=T.g;c[i*3+2]=T.b}
+   g.setAttribute("color",new THREE.BufferAttribute(c,3));return g})();
+ const colG=(()=>{const L=[];for(const[x,z,h,r]of[[0,0,13,2],[2.6,1,9,1.5],[-2.4,1.6,10.5,1.7],[.8,-2.8,7.5,1.4],[-1.6,-2.2,11,1.5],[3.2,-1.6,6,1.2]]){
+   const g=new THREE.CylinderGeometry(r*.7,r,h,6);g.translate(x,h/2,z);L.push(emGradY(g,0x14101a,0x2f8a66))}return emMergeGeo(L)})();
+ const TG={A:emTreeGeo("A"),B:emTreeGeo("B"),C:emTreeGeo("C"),F:emTreeGeo("F")};
+
+ /* ---- water: pool + stream ---- */
+ EM.poolY=rawH(EM.pool.x,EM.pool.z)-.45;
+ {const pg=new THREE.CircleGeometry(EM.pool.r,36);pg.rotateX(-Math.PI/2);const pm=new THREE.Mesh(pg,mWater);pm.position.set(EM.pool.x,EM.poolY,EM.pool.z);pm.renderOrder=2;root.add(pm);
+  const pts=[];for(let i=0;i<EM_STREAM.length-1;i++){const a=EM_STREAM[i],b=EM_STREAM[i+1],n=Math.max(2,Math.round(Math.hypot(b[0]-a[0],b[1]-a[1])/4));for(let k=0;k<n;k++)pts.push([a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n])}
+  pts.push(EM_STREAM[EM_STREAM.length-1]);
+  const pos=[],idx=[];
+  for(let i=0;i<pts.length;i++){const a=pts[Math.max(0,i-1)],b=pts[Math.min(pts.length-1,i+1)];let dx=b[0]-a[0],dz=b[1]-a[1];const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
+    const y=hAt(pts[i][0],pts[i][1])+.22,w=1.7;pos.push(pts[i][0]-dz*w,y,pts[i][1]+dx*w,pts[i][0]+dz*w,y,pts[i][1]-dx*w);if(i<pts.length-1)idx.push(i*2,i*2+1,i*2+2,i*2+1,i*2+3,i*2+2)}
+  const sg=new THREE.BufferGeometry();sg.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));sg.setIndex(idx);sg.computeVertexNormals();
+  const sm=new THREE.Mesh(sg,mWater);sm.renderOrder=2;root.add(sm);}
+
+ /* ---- fruit trees first (so everything else keeps away from them) ---- */
+ const placedT=[];const trunkSolid=(x,z,r)=>solids.push({x,z,r});
+ const okTree=(x,z,gap)=>{if(dC(x,z)>EM.R-10||wet(x,z,4)||slopeAt(x,z)>.32)return false;for(const q of placedT)if(Math.hypot(q.x-x,q.z-z)<gap)return false;return true};
+ const fruitItems=[];let guard=0;
+ const seeds=[[EM.x+40,EM.z+14],[EM.x+33,EM.z-22],[EM.x+8,EM.z+38],[EM.x-30,EM.z+10]];
+ while(fruitItems.length<12&&guard++<900){
+   let p=seeds[fruitItems.length]||pickPt(EM.R-14);
+   if(!okTree(p[0],p[1],24)){p=pickPt(EM.R-14);if(!okTree(p[0],p[1],24))continue}
+   const s=RN(1,1.2);placedT.push({x:p[0],z:p[1]});
+   fruitItems.push({x:p[0],y:hAt(p[0],p[1])-.15,z:p[1],ry:RN(0,6.28),sx:s,sy:s,sz:s,c:0xffffff});
+   trunkSolid(p[0],p[1],TG.F.trunkR*s*1.05);
+ }
+ inst(TG.F.geo,mStd,fruitItems,true);
+ /* fruit slots: ONE InstancedMesh (+ one halo mesh) for all fruits; each slot has its own state machine */
+ const FC=[0x58ff9a,0x35ffe0,0x7dff6a,0x3be8ff];
+ const nF=fruitItems.length*6;
+ const fruitM=new THREE.InstancedMesh(new THREE.SphereGeometry(.34,10,8),mFruit,nF),haloM=new THREE.InstancedMesh(new THREE.SphereGeometry(.62,8,6),mFHalo,nF);
+ fruitM.frustumCulled=false;haloM.frustumCulled=false;fruitM.castShadow=haloM.castShadow=false;
+ const cc=new THREE.Color();
+ fruitItems.forEach((it,ti)=>{
+   const tree={x:it.x,y:it.y,z:it.z,s:it.sx,i:ti,fr:[]};EM.fruitTrees.push(tree);
+   TG.F.slots.forEach((sl,si)=>{
+     const c=Math.cos(it.ry),s=Math.sin(it.ry),lx=sl[0]*it.sx,ly=sl[1]*it.sy,lz=sl[2]*it.sz;
+     const f={tree:ti,idx:ti*6+si,x:it.x+lx*c+lz*s,y:it.y+ly,z:it.z-lx*s+lz*c,state:0,t:0,timer:0,sc:1};
+     cc.setHex(FC[(ti+si)%4]);fruitM.setColorAt(f.idx,cc);EM.fruits.push(f);tree.fr.push(f);
+   });
+   // beacon: a faint pulsing halo above each fruit tree so the trees read from far away
+   const b=new THREE.Mesh(new THREE.SphereGeometry(1.6,10,8),mBeacon);b.position.set(it.x,it.y+13.2*it.sy,it.z);b.scale.set(1.4,.7,1.4);root.add(b);
+ });
+ fruitM.instanceColor.needsUpdate=true;root.add(fruitM,haloM);EM.fruitM=fruitM;EM.haloM=haloM;EM.dummy=new THREE.Object3D();
+ for(const f of EM.fruits)emWriteFruit(f);
+ fruitM.instanceMatrix.needsUpdate=true;haloM.instanceMatrix.needsUpdate=true;
+
+ /* ---- decorative trees (3 variants) ---- */
+ {const kinds=["A","B","C"],byK={A:[],B:[],C:[]};let n=0,g2=0;
+  while(n<28&&g2++<900){const p=pickPt(EM.R-8);
+    if(rnd()>dens(p[0],p[1])*1.1+.1||!okTree(p[0],p[1],11))continue;
+    const k=kinds[n%3],s=RN(.85,1.3);placedT.push({x:p[0],z:p[1]});n++;
+    byK[k].push({x:p[0],y:hAt(p[0],p[1])-.15,z:p[1],ry:RN(0,6.28),sx:s,sy:s*RN(.9,1.15),sz:s});trunkSolid(p[0],p[1],TG[k].trunkR*s);}
+  for(const k of kinds)if(byK[k].length)inst(TG[k].geo,mStd,byK[k],false);}
+
+ /* ---- ground cover ---- */
+ {const grass=[],GC=[0x2fbf5a,0x3fd08a,0x20a878,0x7ad84a,0x35d6b0];let n=0,g2=0;
+  while(n<2300&&g2++<9000){const p=pickPt(EM.R+6);const gr=emGreen(p[0],p[1]);if(rnd()>gr*.92+.04||wet(p[0],p[1],-1)||slopeAt(p[0],p[1])>.6)continue;
+    const k=RN(.8,1.7);grass.push({x:p[0],y:hAt(p[0],p[1])-.05,z:p[1],ry:RN(0,6.28),sx:k,sy:k*RN(.7,1.3),sz:k,c:GC[(rnd()*5)|0]});n++}
+  inst(tuftG,mGrass,grass,true);}
+ {const sh=[],SC=[0x2fd8a8,0x37e07a,0x1fb89a,0x66e68a];let n=0,g2=0;
+  while(n<230&&g2++<3000){const p=pickPt(EM.R-4);if(rnd()>dens(p[0],p[1])+.12||wet(p[0],p[1],0)||slopeAt(p[0],p[1])>.5)continue;
+    const k=RN(.7,1.7);sh.push({x:p[0],y:hAt(p[0],p[1])-.05,z:p[1],ry:RN(0,6.28),sx:k,sy:k*RN(.8,1.3),sz:k,c:SC[(rnd()*4)|0]});n++}
+  inst(shrubG,mStd,sh,true);}
+ {const gp=[],ha=[],GC2=[0x35e8ff,0x5bff9a,0x2ff0c0,0x6fd8ff];let n=0,g2=0;
+  const add=(x,z)=>{const k=RN(.7,1.5),y=hAt(x,z)-.05,c=GC2[(rnd()*4)|0];gp.push({x,y,z,ry:RN(0,6.28),sx:k,sy:k,sz:k,c});ha.push({x,y:y+.95*k,z,ry:0,sx:k,sy:k,sz:k});n++};
+  for(let i=0;i<16;i++){const a=i/16*6.2832+RN(-.2,.2),r=EM.pool.r+RN(1.2,3);add(EM.pool.x+Math.cos(a)*r,EM.pool.z+Math.sin(a)*r)}   // pool rim lights
+  for(let i=1;i<EM_STREAM.length*5;i++){const q=EM_STREAM[Math.min(EM_STREAM.length-1,(i/5)|0)];add(q[0]+RN(-5,5),q[1]+RN(-5,5))}
+  while(n<250&&g2++<4000){const p=pickPt(EM.R-3);if(rnd()>dens(p[0],p[1])*.9+.05||slopeAt(p[0],p[1])>.5)continue;add(p[0],p[1])}
+  inst(glowG,mGlow,gp,true);inst(haloG,mHalo,ha,false);}
+ {const mo=[];let n=0,g2=0;while(n<150&&g2++<3000){const p=pickPt(EM.R-2);if(emGreen(p[0],p[1])<.5||wet(p[0],p[1],0)||slopeAt(p[0],p[1])>.22)continue;
+    const k=RN(1.4,4);mo.push({x:p[0],y:hAt(p[0],p[1])+.06,z:p[1],ry:RN(0,6.28),sx:k,sy:1,sz:k*RN(.7,1.2),c:[0x1f9a64,0x147a56,0x2fb872][(rnd()*3)|0]});n++}
+  inst(mossG,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),mo,true);}
+ /* ---- rocks and basalt columns (solid) ---- */
+ {const ro=[];let n=0,g2=0;while(n<75&&g2++<2000){const p=pickPt(EM.R-3);if(wet(p[0],p[1],2)||slopeAt(p[0],p[1])>.6)continue;
+    const k=Math.pow(rnd(),1.6)*3.4+.7;ro.push({x:p[0],y:hAt(p[0],p[1])+k*.1,z:p[1],ry:RN(0,6.28),sx:k,sy:k*RN(.8,1.4),sz:k});if(k>1.6)solids.push({x:p[0],z:p[1],r:k*.82});n++}
+  inst(rockG,mStd,ro,false);}
+ {const co=[];for(let i=0;i<11;i++){const x=EM.x-50+i*10+RN(-3,3),z=EM.z-52+RN(-6,6);if(dC(x,z)>EM.R-8)continue;const k=RN(.8,1.2);co.push({x,y:hAt(x,z)-.5,z,ry:RN(0,6.28),sx:k,sy:k,sz:k});solids.push({x,z,r:4.2*k})}
+  inst(colG,mStd,co,false);}
+
+ /* ---- spores (restrained: 90 points, recycled around the player) ---- */
+ {const N=90,pg=new THREE.BufferGeometry(),pp=new Float32Array(N*3);for(let i=0;i<N;i++){pp[i*3]=RN(-24,24);pp[i*3+1]=RN(0,9);pp[i*3+2]=RN(-24,24)}
+  pg.setAttribute("position",new THREE.BufferAttribute(pp,3));
+  const pts=new THREE.Points(pg,new THREE.PointsMaterial({color:0x7dffd8,size:.3,transparent:true,opacity:.7,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true}));
+  pts.frustumCulled=false;pts.visible=false;root.add(pts);EM.spores=pts;EM.sp=pp;EM.spN=N;}
+ EM.fogA=new THREE.Color(0x5a2f3a);EM.fogB=new THREE.Color(0x12463f);
+ EM.built=true;
+}
+
+/* ---------- fruit state machine ---------- */
+function emWriteFruit(f){
+ const d=EM.dummy,s=Math.max(.0001,f.sc);
+ d.position.set(f.x,f.y,f.z);d.rotation.set(0,0,0);d.scale.set(f.sc>0?s:0,f.sc>0?s*1.25:0,f.sc>0?s:0);d.updateMatrix();
+ EM.fruitM.setMatrixAt(f.idx,d.matrix);
+ d.scale.multiplyScalar(f.state===0||f.state===3?1:0);d.updateMatrix();EM.haloM.setMatrixAt(f.idx,d.matrix);
+}
+function emNearTree(p){
+ let best=null,bd=EM_REACH+1e-3;
+ for(const t of EM.fruitTrees){const d=Math.hypot(p.x-t.x,p.z-t.z);if(d<bd&&Math.abs(p.y-t.y)<4){bd=d;best=t}}
+ return best;
+}
+function emRipeFruit(tree,p){
+ let best=null,bd=1e9;
+ for(const f of tree.fr){if(f.state!==0)continue;const d=Math.hypot(p.x-f.x,p.z-f.z,(p.y+1.2-f.y)*.4);if(d<bd){bd=d;best=f}}
+ return best;
+}
+function emAction(p){
+ if(!EM.built||EM.off||roverMounted||!started)return null;
+ const t=emNearTree(p);if(!t)return null;
+ if(!p3KarthikMet)return "INSPECT ALIEN TREE";
+ return emRipeFruit(t,p)?"COLLECT ALIEN FRUIT":"ALIEN TREE • FRUIT REGROWING";
+}
+function emInteract(act){
+ if(act==="INSPECT ALIEN TREE"){toast("UNIDENTIFIED ALIEN FRUIT",1600);return true}
+ if(act==="ALIEN TREE • FRUIT REGROWING"){toast("FRUIT IS REGROWING",1400);return true}
+ if(act==="COLLECT ALIEN FRUIT"){emCollect();return true}
+ return false;
+}
+function emCollect(){
+ const now=performance.now();
+ if(now-EM.lastCollect<450||!p3KarthikMet)return;          // one fruit per press; blocks double-fires
+ const p=player.position,t=emNearTree(p);if(!t)return;
+ const f=emRipeFruit(t,p);if(!f)return;
+ EM.lastCollect=now;
+ f.state=1;f.t=0;f.fx=f.x;f.fy=f.y;f.fz=f.z;                // fly to the player; the slot itself stays in place
+ p3Fruit+=1;p3UpdateHUD();                                   // the EXISTING alien-fruit item (+100% hunger via p3UseFood('fruit'))
+ toast("+1 ALIEN FRUIT",1100);
+ try{blip(980,.1,.07);setTimeout(()=>blip(1320,.12,.06),90)}catch(e){}
+ try{vibrate(18)}catch(e){}
+}
+function emUpdateFruit(dt,t){
+ const p=player.position;let dirty=false;
+ for(const f of EM.fruits){
+   if(f.state===0)continue;
+   if(f.state===1){                                          // collection animation (0.35 s)
+     f.t+=dt;const k=Math.min(1,f.t/EM_FLY_TIME),e=k*k*(3-2*k);
+     const ox=f.x,oy=f.y,oz=f.z;
+     f.x=f.fx+(p.x-f.fx)*e;f.y=f.fy+(p.y+1.2-f.fy)*e+Math.sin(k*3.14)*.5;f.z=f.fz+(p.z-f.fz)*e;f.sc=1-.7*e;
+     emWriteFruit(f);f.x=ox;f.y=oy;f.z=oz;dirty=true;
+     if(k>=1){f.state=2;f.sc=0;f.timer=EM_REGROW_MIN+Math.random()*EM_REGROW_VAR;emWriteFruit(f)}
+   }else if(f.state===2){
+     f.timer-=dt;if(f.timer<=0){f.state=3;f.t=0;f.sc=0}
+   }else if(f.state===3){
+     f.t+=dt;const k=Math.min(1,f.t/EM_GROW_TIME);f.sc=k*k*(3-2*k);emWriteFruit(f);dirty=true;
+     if(k>=1){f.state=0;f.sc=1;emWriteFruit(f)}
+   }
+ }
+ if(dirty){EM.fruitM.instanceMatrix.needsUpdate=true;EM.haloM.instanceMatrix.needsUpdate=true}
+}
+
+/* ---------- story + waypoint ---------- */
+function emWaypoint(){
+ if(p3Inside)return {pos:null,txt:"LEAVE THE STRUCTURE • FOLLOW THE COMPASS",noDist:true};
+ if(inCave||inColossalInterior)return {pos:null,txt:"RETURN OUTSIDE • FOLLOW THE COMPASS",noDist:true};
+ if(state==="EMERALD_COMPASS")return {pos:{x:EM.entry.x,z:EM.entry.z},name:"COMPASS BEARING",txt:"FOLLOW THE COMPASS TO THE EMERALD EXPANSE",css:"#3dffb0",col:0x3dffb0,lift:16};
+ return {pos:null,txt:"EXPLORE • GLOWING TREES BEAR EDIBLE ALIEN FRUIT",noDist:true};
+}
+function emActivate(){
+ EM.activated=true;setState("EMERALD_COMPASS");
+ try{hum(3,46,.25)}catch(e){}
+ try{neutron("COMPASS ONLINE","NEW BEARING: THE EMERALD EXPANSE")}catch(e){}
+ speak("HEMTON",["The Echo core has answered. A new bearing has locked onto your compass.","Atmospheric scans show free moisture and chlorophyll signatures to the northwest. That should not exist here.","Follow the waypoint, Hemadri."],()=>{
+   if(STORY.karthikChoice==="stay"&&typeof KF!=="undefined"&&KF.active)speak("KARTHIK",["Green? On this planet? I will believe it when I see it."]);
+ });
+}
+function emEnterBiome(){
+ EM.entered=true;setState("EMERALD_EXPANSE");
+ try{neutron("THE EMERALD EXPANSE","ALIEN ECOSYSTEM DETECTED")}catch(e){}
+ speak("HEMTON",["Living vegetation, everywhere. This is an ecosystem.","The trees with glowing fruit are safe to eat. One fruit restores your hunger completely, and they regrow.","Stay alert. Something here is not alone."]);
+}
+function updateEmerald(dt,t){
+ if(EM.off||!EM.built)return;
+ const p=player.position;
+ /* ?emerald=1 : test shortcut, inert unless the URL carries it */
+ if(EM.test&&!EM.testDone&&started&&!inputLocked){
+   EM.testDone=true;
+   if(!STORY.karthikChoice)STORY.karthikChoice="separate";
+   p3ChoiceMade=true;STORY.keycard=true;ECHO.intro=true;ECHO.arrived=true;
+   if(!p3KarthikMet){p3KarthikMet=true;p3Hunger=55;p3Food=2;p3Fruit=1}
+   p.set(EM.entry.x+10,0,EM.entry.z);p.y=groundHeight(p.x,p.z);yaw=Math.PI/2;
+   EM.activated=true;setState("EMERALD_COMPASS");p3UpdateHUD();
+ }
+ const outdoors=!p3Inside&&!inCave&&!inColossalInterior;
+ const dB=Math.hypot(p.x-EM.x,p.z-EM.z);
+ if(outdoors&&state==="ECHO_ARRIVED"&&!EM.activated&&!speaking&&!inputLocked&&Math.hypot(p.x-SPIRE_X,p.z-(SPIRE_Z+4))<14)emActivate();
+ if(outdoors&&state==="EMERALD_COMPASS"&&!EM.entered&&!speaking&&!inputLocked&&dB<EM.R-26)emEnterBiome();
+ emUpdateFruit(dt,t);
+ const near=outdoors&&dB<EM.R+70;
+ if(near){
+   const M=EM.mats;
+   M.mGlow.color.setScalar(.8+.2*Math.sin(t*1.7));M.mHalo.opacity=.15+.08*Math.sin(t*2.1+1);
+   M.mFruit.color.setScalar(.88+.12*Math.sin(t*3.2));M.mFHalo.opacity=.24+.1*Math.sin(t*3.2+.6);M.mBeacon.opacity=.15+.06*Math.sin(t*1.3);
+   M.mWater.emissiveIntensity=.7+.25*Math.sin(t*1.1);
+ }
+ /* spores */
+ const sp=EM.spores,showS=near&&dB<EM.R+20&&!SET.lowfx&&perfLevel<2;
+ sp.visible=showS;
+ if(showS){
+   const a=EM.sp;
+   for(let i=0;i<EM.spN;i++){
+     let x=a[i*3],y=a[i*3+1],z=a[i*3+2];
+     x+=Math.sin(t*.7+i)*dt*.6+.25*dt;y+=dt*(.25+(i%5)*.06);z+=Math.cos(t*.6+i*1.7)*dt*.6;
+     if(y>9){y=0}
+     if(x>24)x-=48;else if(x<-24)x+=48;if(z>24)z-=48;else if(z<-24)z+=48;
+     a[i*3]=x;a[i*3+1]=y;a[i*3+2]=z;
+   }
+   EM.spores.geometry.attributes.position.needsUpdate=true;
+   sp.position.set(p.x,p.y,p.z);
+ }
+ /* greenish fog tint while inside the biome (restored exactly when leaving) */
+ if(outdoors){
+   const k=smoothstep(EM.R+10,EM.R-25,dB);
+   if(k>.001||EM.fogOn){scene.fog.color.copy(EM.fogA).lerp(EM.fogB,k*.8);EM.fogOn=k>.001}
+ }
+}
+function updateEmeraldSafe(dt,t){try{updateEmerald(dt,t)}catch(e){if(!EM.off){EM.off=true;console.error("NEXUS Emerald Expanse disabled after error:",e)}}}
 
 loading.textContent="Loading AURELIS...";
 setup();
