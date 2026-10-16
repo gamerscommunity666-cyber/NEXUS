@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#050309">
- <link rel="manifest" href="./manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>NEXUS — AURELIS (v1.3.5 Emerald Expanse candidate)</title>
@@ -300,7 +299,7 @@ const SPIRE_PAD_Y=(()=>{const h=rawH(SPIRE_X,SPIRE_Z),t=smoothstep(RP_X0,RP_X0+R
 /* ===== v13.5 THE EMERALD EXPANSE — terrain shaping + ground tint (data/functions only; geometry is built in createEmeraldExpanse) =====
    Centre (-5,-165): north of the crash site on the original terrain mesh, clear of the crash site, Research Center, Gate, caves, ruins,
    the colossal ship, the mysterious structure and the Echo Spire (all >130 m away). Radius 74 m. Terrain edits fade to exactly 0 at the rim. */
-const EM={x:-5,z:-165,R:74,pool:{x:-12,z:-158,r:11},entry:{x:45,z:-155},built:false,off:false,root:null,
+const EM={x:-5,z:-165,R:74,pool:{x:-12,z:-158,r:11},entry:{x:40,z:-162},built:false,off:false,root:null,
  trees:[],fruits:[],fruitTrees:[],lastCollect:-1e9,activated:false,entered:false,fogOn:false,poolY:0,fdirty:false,
  test:(location.search.match(/[?&]emerald=1/)?"1":null),testDone:false};
 const EM_STREAM=[[-3,-157],[8,-153],[20,-146],[26,-134],[36,-126],[46,-124],[52,-122]];
@@ -6586,7 +6585,7 @@ function updateEmerald(dt,t){
  const outdoors=!p3Inside&&!inCave&&!inColossalInterior;
  const dB=Math.hypot(p.x-EM.x,p.z-EM.z);
  if(outdoors&&state==="ECHO_ARRIVED"&&!EM.activated&&!speaking&&!inputLocked&&Math.hypot(p.x-SPIRE_X,p.z-(SPIRE_Z+4))<14)emActivate();
- if(outdoors&&state==="EMERALD_COMPASS"&&!EM.entered&&!speaking&&!inputLocked&&dB<EM.R-26)emEnterBiome();
+ if(outdoors&&state==="EMERALD_COMPASS"&&!EM.entered&&!speaking&&!inputLocked&&(dB<EM.R-26||Math.hypot(p.x-EM.entry.x,p.z-EM.entry.z)<9))emEnterBiome();
  emUpdateFruit(dt,t);
  const near=outdoors&&dB<EM.R+70;
  if(near){
